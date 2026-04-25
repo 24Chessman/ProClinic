@@ -77,11 +77,7 @@ def _validate_lab_report_pdf(value):
         )
 
 
-from django.core.files.storage import storages
-
-def select_raw_storage():
-    return storages['raw']
-
+from cloudinary.models import CloudinaryField
 
 class LabReport(models.Model):
     """
@@ -128,9 +124,10 @@ class LabReport(models.Model):
     report_date = models.DateField(
         help_text="Date the test was conducted.",
     )
-    pdf_file = models.FileField(
-        upload_to='lab_reports/%Y/%m/',
-        storage=select_raw_storage,
+    pdf_file = CloudinaryField(
+        'pdf_file',
+        resource_type='raw',
+        format='pdf',
         validators=[_validate_lab_report_pdf],
         help_text="Upload the lab report PDF (max 5 MB).",
     )

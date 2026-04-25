@@ -3,10 +3,7 @@ from django.conf import settings
 from patients.models import Patient, Visit
 from appointments.models import Appointment
 
-from django.core.files.storage import storages
-
-def select_raw_storage():
-    return storages['raw']
+from cloudinary.models import CloudinaryField
 
 class Prescription(models.Model):
     """
@@ -47,7 +44,7 @@ class Prescription(models.Model):
     )
 
     # PDF export
-    pdf_file = models.FileField(upload_to='prescriptions/pdfs/', storage=select_raw_storage, blank=True, null=True)
+    pdf_file = CloudinaryField('pdf_file', resource_type='raw', format='pdf', blank=True, null=True)
 
     # Pharmacist dispense tracking
     DISPENSE_PENDING = 'PENDING'
