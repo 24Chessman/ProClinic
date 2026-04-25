@@ -64,15 +64,12 @@ services:
       # ── Cloudinary (media uploads: PDFs, images, lab reports) ────────────────
       # Copy values from: Cloudinary Dashboard → Settings → Access Keys
       - key: CLOUDINARY_CLOUD_NAME
-        value: dbcfaall1
         sync: false
 
       - key: CLOUDINARY_API_KEY
-        value: 885696539824291
         sync: false
 
       - key: CLOUDINARY_API_SECRET
-        value: u-VVYzFyvtUnLuYsBbmyn04HM3U
         sync: false
 
       # ── Security headers ─────────────────────────────────────────────────────
