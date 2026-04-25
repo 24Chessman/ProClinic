@@ -215,6 +215,13 @@
                     <span>My Profile</span>
                 </a>
             </li>
+            <li>
+                <a href="{% url 'patient_publications' %}"
+                   class="{% if 'publications' in request.path and 'patient' in request.path %}is-active{% endif %}">
+                    <i data-feather="book-open"></i>
+                    <span>Research Papers</span>
+                </a>
+            </li>
         {% endif %}
 
     </ul>

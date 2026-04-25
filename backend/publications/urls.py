@@ -6,6 +6,9 @@ urlpatterns = [
     path('', views.public_list, name='publications_public_list'),
     path('<int:pk>/', views.public_detail, name='publications_public_detail'),
 
+    # Patient portal (login required)
+    path('patient/', views.patient_publications, name='patient_publications'),
+
     # Doctor
     path('submit/', views.submit_paper, name='submit_paper'),
     path('my-papers/', views.doctor_dashboard, name='doctor_my_papers'),

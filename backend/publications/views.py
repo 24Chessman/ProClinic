@@ -57,6 +57,25 @@ def public_detail(request, pk):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Patient portal view (login required, approved papers only)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@login_required
+def patient_publications(request):
+    """Patient portal: browse approved research papers. PATIENT role only."""
+    if request.user.role != 'PATIENT':
+        return redirect('dashboard')
+
+    papers = (
+        Publication.objects
+        .filter(status=Publication.STATUS_APPROVED)
+        .select_related('doctor')
+        .order_by('-approved_at')
+    )
+    return render(request, 'publications/patient_list.html', {'papers': papers})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Doctor views
 # ──────────────────────────────────────────────────────────────────────────────
 

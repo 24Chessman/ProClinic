@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Research Publications — ProClinic Patient Portal{% endblock %}
+
+{% block content %}
+<section class="pc-section">
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <div class="pc-section-header" style="margin-bottom:2rem;">
+    <div>
+      <h1 class="pc-title" style="font-size:1.75rem;">Research Publications</h1>
+      <p class="pc-subtitle" style="color:var(--pc-text-muted);margin-top:.3rem;">
+        Peer-reviewed papers published by the ProClinic clinical team.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Paper list ─────────────────────────────────────────────────── -->
+  {% if not papers %}
+  <div class="pc-card" style="padding:3.5rem 2rem;text-align:center;border-radius:16px;">
+    <i data-feather="book-open"
+       style="width:3rem;height:3rem;color:var(--pc-text-muted);margin-bottom:1rem;display:inline-block;"></i>
+    <p style="font-size:1.05rem;font-weight:600;color:var(--pc-text);margin-bottom:.4rem;">
+      No published papers yet
+    </p>
+    <p style="color:var(--pc-text-muted);font-size:.9rem;">
+      Check back later — approved research papers will appear here.
+    </p>
+  </div>
+
+  {% else %}
+  <div style="display:grid;gap:1.25rem;">
+    {% for paper in papers %}
+    <article class="pc-card"
+             style="padding:1.5rem 1.75rem;border-radius:16px;
+                    box-shadow:var(--pc-shadow-soft);border-color:#e4eaf2;
+                    transition:box-shadow .2s ease;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+
+        <!-- Left: badge + title + meta -->
+        <div style="flex:1;min-width:0;">
+          <span class="pc-badge pc-badge--success"
+                style="margin-bottom:.6rem;display:inline-block;font-size:.75rem;
+                       padding:.2rem .65rem;border-radius:6px;">
+            Published
+          </span>
+          <h2 style="font-size:1.1rem;font-weight:700;color:var(--pc-text);
+                     margin-bottom:.35rem;line-height:1.4;">
+            {{ paper.title }}
+          </h2>
+          <div style="display:flex;flex-wrap:wrap;gap:.75rem 1.5rem;
+                      font-size:.82rem;color:var(--pc-text-muted);margin-bottom:.7rem;">
+            <span>
+              <i data-feather="users" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i>
+              {{ paper.authors }}
+            </span>
+            <span>
+              <i data-feather="user" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i>
+              Dr. {{ paper.doctor.get_full_name|default:paper.doctor.username }}
+            </span>
+            <span>
+              <i data-feather="calendar" style="width:12px;height:12px;vertical-align:middle;margin-right:3px;"></i>
+              {{ paper.approved_at|date:"d M Y" }}
+            </span>
+          </div>
+          <p style="font-size:.875rem;color:var(--pc-text-muted);line-height:1.65;
+                    margin:0;display:-webkit-box;-webkit-line-clamp:3;
+                    line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+            {{ paper.abstract|truncatewords:50 }}
+          </p>
+        </div>
+
+        <!-- Right: PDF buttons -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0;">
+          {% if paper.pdf_file %}
+          <a href="{{ paper.pdf_file.url }}" target="_blank"
+             class="pc-btn pc-btn--primary pc-btn--sm"
+             style="gap:6px;border-radius:8px;min-height:36px;padding:0 14px;font-size:13px;">
+            <i data-feather="eye" style="width:14px;height:14px;"></i>
+            View PDF
+          </a>
+          <a href="{{ paper.pdf_file.url }}" download
+             class="pc-btn pc-btn--outline pc-btn--sm"
+             style="gap:6px;border-radius:8px;min-height:36px;padding:0 14px;font-size:13px;">
+            <i data-feather="download" style="width:14px;height:14px;"></i>
+            Download
+          </a>
+          {% else %}
+          <span style="font-size:.8rem;color:var(--pc-text-muted);white-space:nowrap;">No PDF</span>
+          {% endif %}
+        </div>
+
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</section>
+{% endblock %}
