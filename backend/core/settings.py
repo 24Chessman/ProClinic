@@ -137,6 +137,13 @@ STORAGES = {
             else 'django.core.files.storage.FileSystemStorage'
         ),
     },
+    'raw': {
+        'BACKEND': (
+            'cloudinary_storage.storage.RawMediaCloudinaryStorage'
+            if _CLOUDINARY_CONFIGURED
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
+    },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },

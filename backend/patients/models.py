@@ -77,6 +77,12 @@ def _validate_lab_report_pdf(value):
         )
 
 
+from django.core.files.storage import storages
+
+def select_raw_storage():
+    return storages['raw']
+
+
 class LabReport(models.Model):
     """
     Lab report PDF uploaded for a patient.
@@ -124,6 +130,7 @@ class LabReport(models.Model):
     )
     pdf_file = models.FileField(
         upload_to='lab_reports/%Y/%m/',
+        storage=select_raw_storage,
         validators=[_validate_lab_report_pdf],
         help_text="Upload the lab report PDF (max 5 MB).",
     )

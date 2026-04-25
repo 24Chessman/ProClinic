@@ -1,7 +1,10 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.files.storage import storages
 
+def select_raw_storage():
+    return storages['raw']
 
 class Publication(models.Model):
     STATUS_DRAFT    = 'DRAFT'
@@ -28,7 +31,7 @@ class Publication(models.Model):
         max_length=500,
         help_text='Comma-separated list of authors.',
     )
-    pdf_file = models.FileField(upload_to='publications/papers/')
+    pdf_file = models.FileField(upload_to='publications/papers/', storage=select_raw_storage)
     status   = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
