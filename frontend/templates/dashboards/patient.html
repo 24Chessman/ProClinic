@@ -1,22 +1,36 @@
 <div class="pc-grid" style="gap: var(--pc-space-5); margin-bottom: var(--pc-space-6);">
-    <div class="pc-col-4 pc-card pc-stat-primary" style="box-shadow: 0 10px 30px rgba(12, 167, 137, 0.15); border: none; padding: 8px;">
+    <div class="pc-col-3 pc-card pc-stat-primary" style="box-shadow: 0 10px 30px rgba(12, 167, 137, 0.15); border: none; padding: 8px;">
         <div class="pc-card-body">
             <h6 style="margin:0; opacity: 0.95; font-weight: 500; font-size: 15px; letter-spacing: 0.3px;">Total Visits</h6>
             <div class="pc-stat-value" style="font-size: 34px; margin-top: 10px;">{{ my_total_visits }}</div>
         </div>
     </div>
-    <div class="pc-col-4 pc-card pc-stat-secondary" style="background: linear-gradient(160deg, #1fa574, #0ca789); color: white; box-shadow: 0 10px 30px rgba(12, 167, 137, 0.15); border: none; padding: 8px;">
+    <div class="pc-col-3 pc-card pc-stat-secondary" style="background: linear-gradient(160deg, #1fa574, #0ca789); color: white; box-shadow: 0 10px 30px rgba(12, 167, 137, 0.15); border: none; padding: 8px;">
         <div class="pc-card-body">
             <h6 style="margin:0; opacity: 0.95; font-weight: 500; font-size: 15px; letter-spacing: 0.3px;">Prescriptions Issued</h6>
             <div class="pc-stat-value" style="font-size: 34px; margin-top: 10px;">{{ my_prescriptions|length }}</div>
         </div>
     </div>
-    <div class="pc-col-4 pc-card pc-stat-warning" style="box-shadow: 0 10px 30px rgba(255, 209, 102, 0.15); border: none; padding: 8px;">
+    <div class="pc-col-3 pc-card pc-stat-warning" style="box-shadow: 0 10px 30px rgba(255, 209, 102, 0.15); border: none; padding: 8px;">
         <div class="pc-card-body">
             <h6 style="margin:0; opacity: 0.95; font-weight: 500; font-size: 15px; letter-spacing: 0.3px;">Pending Bills</h6>
             <div class="pc-stat-value" style="font-size: 34px; margin-top: 10px;">&#8377;{{ my_invoice_due }}</div>
         </div>
     </div>
+    <a href="{% url 'patient_lab_reports' %}" class="pc-col-3 pc-card"
+       style="background: linear-gradient(160deg, #7b5ea7, #6347a0); color: white;
+              box-shadow: 0 10px 30px rgba(123, 94, 167, 0.2); border: none; padding: 8px;
+              text-decoration: none; display: block;">
+        <div class="pc-card-body">
+            <h6 style="margin:0; opacity: 0.95; font-weight: 500; font-size: 15px; letter-spacing: 0.3px; color: white;">
+                Lab Reports
+            </h6>
+            <div class="pc-stat-value" style="font-size: 34px; margin-top: 10px; color: white;">
+                {{ my_lab_reports_count }}
+            </div>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Click to view &rarr;</div>
+        </div>
+    </a>
 </div>
 
 <div class="pc-grid" style="gap: var(--pc-space-6);">

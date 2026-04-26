@@ -9,7 +9,7 @@ from django.conf import settings
 from accounts.models import CustomUser
 from audit.models import AuditLog
 from billing.models import Invoice
-from patients.models import Patient, Visit
+from patients.models import Patient, Visit, LabReport
 from appointments.models import Appointment
 from publications.models import Publication
 from prescriptions.models import Prescription, PrescriptionItem
@@ -170,6 +170,7 @@ def dashboard(request):
             'my_prescriptions': my_prescriptions[:10],
             'my_total_visits': my_history.count(),
             'my_invoice_due': my_invoices.filter(status__in=['UNPAID', 'PARTIAL']).aggregate(total=Sum('total_amount'))['total'] or 0,
+            'my_lab_reports_count': LabReport.objects.filter(patient=patient_profile).count() if patient_profile else 0,
         })
 
     return render(request, 'dashboard.html', context)

@@ -146,23 +146,30 @@ def patient_update(request, pk):
 
 @login_required
 def lab_report_verify(request, pk):
-    if request.user.role not in {'ADMIN', 'DOCTOR', 'RECEPTIONIST'}:
-        return redirect('dashboard')
+    # Only DOCTOR and ADMIN may clinically verify a lab report.
+    # Receptionists can view but not verify.
+    if request.user.role not in {'ADMIN', 'DOCTOR'}:
+        messages.error(request, "Only doctors and administrators can verify lab reports.")
+        next_url = request.POST.get('next') or request.GET.get('next')
+        return redirect(next_url) if next_url else redirect('dashboard')
     report = get_object_or_404(LabReport, pk=pk)
     if request.method == 'POST':
         report.mark_verified(user=request.user)
-        messages.success(request, f"Lab report #{pk} marked as verified.")
+        messages.success(request, f"Lab report '{report.test_name}' marked as verified.")
     next_url = request.POST.get('next')
     return redirect(next_url) if next_url else redirect('patient_detail', pk=report.patient.pk)
 
 @login_required
 def lab_report_archive(request, pk):
-    if request.user.role not in {'ADMIN', 'RECEPTIONIST'}:
-        return redirect('dashboard')
+    # Archiving is ADMIN-only to prevent accidental clinical data loss.
+    if request.user.role not in {'ADMIN'}:
+        messages.error(request, "Only administrators can archive lab reports.")
+        next_url = request.POST.get('next') or request.GET.get('next')
+        return redirect(next_url) if next_url else redirect('dashboard')
     report = get_object_or_404(LabReport, pk=pk)
     if request.method == 'POST':
         report.mark_archived()
-        messages.success(request, f"Lab report #{pk} archived.")
+        messages.success(request, f"Lab report '{report.test_name}' archived.")
     next_url = request.POST.get('next')
     return redirect(next_url) if next_url else redirect('patient_detail', pk=report.patient.pk)
 
@@ -247,7 +254,7 @@ def patient_my_lab_reports(request):
             for err in errors:
                 messages.error(request, err)
         else:
-            LabReport.objects.create(
+            report = LabReport.objects.create(
                 patient=profile,
                 uploaded_by=request.user,
                 test_name=test_name,
@@ -255,6 +262,12 @@ def patient_my_lab_reports(request):
                 pdf_file=pdf_file,
             )
             messages.success(request, "Lab report uploaded successfully.")
+
+            # ── Notify doctors who have ever treated this patient ──────────
+            from core.utils import send_lab_report_notification
+            send_lab_report_notification(report, profile)
+            # ─────────────────────────────────────────────────────────────
+
             return redirect('patient_lab_reports')
 
     reports = LabReport.objects.filter(patient=profile).order_by('-uploaded_at')

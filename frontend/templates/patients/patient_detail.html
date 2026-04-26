@@ -192,34 +192,44 @@
                                         <td style="padding: 16px 24px; font-weight: 500;">{{ report.report_date|date:"M d, Y" }}</td>
                                         <td style="padding: 16px 14px;">{{ report.test_name }}</td>
                                         <td style="padding: 16px 14px;">
-                                            {% if report.status == 'VERIFIED' %}
-                                                <span class="pc-chip pc-chip--confirmed" style="padding: 5px 12px;">Verified</span>
-                                            {% elif report.status == 'ARCHIVED' %}
+                                            {# model stores lowercase: 'pending', 'verified', 'archived' #}
+                                            {% if report.status == 'verified' %}
+                                                <span class="pc-chip pc-chip--confirmed" style="padding: 5px 12px; display:inline-flex; align-items:center; gap:4px;">
+                                                    <i data-feather="shield" style="width:12px;height:12px;"></i> Verified
+                                                </span>
+                                            {% elif report.status == 'archived' %}
                                                 <span class="pc-chip" style="padding: 5px 12px; background: #e4eaf2; color: #596578;">Archived</span>
                                             {% else %}
                                                 <span class="pc-chip pc-chip--scheduled" style="padding: 5px 12px;">Pending</span>
                                             {% endif %}
                                         </td>
-                                        <td style="padding: 16px 24px; text-align: right;">
+                                        <td style="padding: 16px 24px; text-align: right; white-space: nowrap;">
                                             {% if report.pdf_file %}
-                                            <a href="{{ report.pdf_file.url }}" class="pc-btn pc-btn--ghost" target="_blank" style="padding: 6px 12px; min-height: 32px; font-size: 13px;">View</a>
+                                            <a href="{{ report.pdf_file.url }}" class="pc-btn pc-btn--ghost" target="_blank"
+                                               style="padding: 6px 12px; min-height: 32px; font-size: 13px;">View PDF</a>
                                             {% endif %}
-                                            {% if request.user.role in 'ADMIN,DOCTOR,RECEPTIONIST' %}
-                                                {% if report.status == 'PENDING' %}
+
+                                            {# Verify: DOCTOR and ADMIN only — not Receptionist #}
+                                            {% if request.user.role == 'ADMIN' or request.user.role == 'DOCTOR' %}
+                                                {% if report.status == 'pending' %}
                                                     <form method="post" action="{% url 'lab_report_verify' report.pk %}" style="display:inline;">
                                                         {% csrf_token %}
                                                         <input type="hidden" name="next" value="{{ request.path }}">
-                                                        <button type="submit" class="pc-btn pc-btn--primary" style="padding: 6px 12px; min-height: 32px; font-size: 13px;">Verify</button>
+                                                        <button type="submit" class="pc-btn pc-btn--primary"
+                                                                style="padding: 6px 12px; min-height: 32px; font-size: 13px;">Verify</button>
                                                     </form>
                                                 {% endif %}
-                                                {% if report.status != 'ARCHIVED' %}
-                                                    {% if request.user.role in 'ADMIN,RECEPTIONIST' %}
+                                            {% endif %}
+
+                                            {# Archive: ADMIN only #}
+                                            {% if request.user.role == 'ADMIN' %}
+                                                {% if report.status != 'archived' %}
                                                     <form method="post" action="{% url 'lab_report_archive' report.pk %}" style="display:inline;">
                                                         {% csrf_token %}
                                                         <input type="hidden" name="next" value="{{ request.path }}">
-                                                        <button type="submit" class="pc-btn pc-btn--ghost" style="padding: 6px 12px; min-height: 32px; font-size: 13px; color: #596578;">Archive</button>
+                                                        <button type="submit" class="pc-btn pc-btn--ghost"
+                                                                style="padding: 6px 12px; min-height: 32px; font-size: 13px; color: #596578;">Archive</button>
                                                     </form>
-                                                    {% endif %}
                                                 {% endif %}
                                             {% endif %}
                                         </td>
