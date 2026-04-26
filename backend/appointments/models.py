@@ -37,6 +37,10 @@ class DoctorUnavailability(models.Model):
             if not doctor_obj or doctor_obj.role != 'DOCTOR':
                 errors['doctor'] = "Unavailability can only be assigned to a doctor."
 
+        # Prevent past unavailability blocks (defence-in-depth — form also validates this)
+        if self.start_time and self.start_time < timezone.now():
+            errors['start_time'] = "Start time cannot be in the past."
+
         if self.start_time and self.end_time and self.end_time <= self.start_time:
             errors['end_time'] = "End time must be after start time."
 

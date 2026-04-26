@@ -38,7 +38,8 @@ def _accountant_or_admin(user):
 
 @login_required
 def generate_invoice(request):
-    if request.user.role not in {'ACCOUNTANT', 'ADMIN', 'RECEPTIONIST'}:
+    # Receptionist role removed — only ACCOUNTANT and ADMIN may generate invoices
+    if request.user.role not in {'ACCOUNTANT', 'ADMIN'}:
         return redirect('dashboard')
 
     if request.method == 'POST':
@@ -172,7 +173,9 @@ def patient_invoices(request):
     invoices = (
         Invoice.objects
         .filter(patient=patient_profile)
-        .exclude(status='DRAFT')   # Draft invoices are internal; patients see only finalised invoices
+        # Include DRAFT invoices so patients can see auto-generated bills
+        # immediately after a completed appointment. The accountant still
+        # reviews and adjusts the draft before marking it PAID.
         .prefetch_related('items', 'appointment__doctor')
         .order_by('-created_at')
     )
@@ -383,7 +386,7 @@ def invoice_detail(request, pk):
     Full detail view for a single invoice – Accountant / Admin.
     Shows all line items, linked patient, appointment, and status history.
     """
-    if request.user.role not in {'ACCOUNTANT', 'ADMIN', 'RECEPTIONIST'}:
+    if request.user.role not in {'ACCOUNTANT', 'ADMIN'}:
         return redirect('dashboard')
 
     invoice = get_object_or_404(
@@ -665,9 +668,9 @@ def invoice_pdf_download(request, pk):
                 Q(email=request.user.email) |
                 Q(contact_number=request.user.phone_number)
             ).first()
-        if not patient or invoice.patient != patient or invoice.status == 'DRAFT':
+        if not patient or invoice.patient != patient:
             raise Http404
-    elif request.user.role not in {'ACCOUNTANT', 'ADMIN', 'RECEPTIONIST'}:
+    elif request.user.role not in {'ACCOUNTANT', 'ADMIN'}:
         return redirect('dashboard')
 
     # Generate PDF bytes in memory — no CloudinaryResource.save() involved

@@ -143,6 +143,38 @@ class AppointmentForm(forms.ModelForm):
 
 
 class DoctorUnavailabilityForm(forms.ModelForm):
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get('start_time')
+        end_time   = cleaned_data.get('end_time')
+
+        if start_time:
+            # Make start_time timezone-aware if it isn't already
+            if timezone.is_naive(start_time):
+                start_time = timezone.make_aware(
+                    start_time, timezone.get_current_timezone()
+                )
+                cleaned_data['start_time'] = start_time
+
+            if start_time < timezone.now():
+                self.add_error(
+                    'start_time',
+                    'Start time cannot be in the past. '
+                    'Please select a future date and time.',
+                )
+
+        if end_time:
+            if timezone.is_naive(end_time):
+                end_time = timezone.make_aware(
+                    end_time, timezone.get_current_timezone()
+                )
+                cleaned_data['end_time'] = end_time
+
+        if start_time and end_time and end_time <= start_time:
+            self.add_error('end_time', 'End time must be after start time.')
+
+        return cleaned_data
+
     class Meta:
         model = DoctorUnavailability
         fields = ['start_time', 'end_time', 'reason']

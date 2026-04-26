@@ -165,6 +165,38 @@ def deactivate_staff_account(request, pk):
     return redirect('create_staff_account')
 
 
+@require_POST
+@login_required
+def reactivate_staff_account(request, pk):
+    """POST – reactivate a deactivated staff account. Admin only."""
+    if request.user.role != 'ADMIN':
+        return redirect('dashboard')
+
+    target_user = get_object_or_404(CustomUser, pk=pk)
+
+    if target_user.role == 'PATIENT':
+        messages.error(request, "Cannot reactivate patient accounts from this portal.")
+        return redirect('create_staff_account')
+
+    if target_user.is_active:
+        messages.info(request, f"Account {target_user.username} is already active.")
+        return redirect('create_staff_account')
+
+    target_user.is_active = True
+    target_user.save(update_fields=['is_active'])
+
+    AuditLog.objects.create(
+        actor=request.user,
+        action_type='UPDATE',
+        entity_type='CustomUser',
+        entity_id=target_user.pk,
+        changes={'action': 'reactivated account', 'target': target_user.username},
+    )
+
+    messages.success(request, f"Staff account {target_user.username} reactivated successfully.")
+    return redirect('create_staff_account')
+
+
 @login_required
 def patient_profile(request):
     if request.user.role != 'PATIENT':

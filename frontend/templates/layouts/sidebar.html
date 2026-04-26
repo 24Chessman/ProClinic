@@ -71,18 +71,7 @@
                     <span>Book Appointment</span>
                 </a>
             </li>
-            <li>
-                <a href="{% url 'generate_invoice' %}" class="{% if 'new' in request.path and 'billing' in request.path %}is-active{% endif %}">
-                    <i data-feather="file-plus"></i>
-                    <span>Generate Invoice</span>
-                </a>
-            </li>
-            <li>
-                <a href="{% url 'invoice_list' %}" class="{% if 'manage' in request.path and 'billing' in request.path %}is-active{% endif %}">
-                    <i data-feather="credit-card"></i>
-                    <span>Invoices</span>
-                </a>
-            </li>
+            {# Generate Invoice and Invoices removed — Receptionist no longer has billing access #}
         {% endif %}
 
         {# ── DOCTOR ────────────────────────────────────── #}

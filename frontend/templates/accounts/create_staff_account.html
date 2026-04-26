@@ -104,6 +104,11 @@
                                 {% csrf_token %}
                                 <button type="submit" class="pc-btn pc-btn--danger" style="padding: 6px 14px; min-height: 32px; font-size: 12px; border-radius: 6px;">Deactivate</button>
                             </form>
+                            {% else %}
+                            <form method="post" action="{% url 'reactivate_staff' staff.pk %}" style="margin: 0;" onsubmit="return confirm('Reactivate {{ staff.username }}? This will allow them to log in again.');">
+                                {% csrf_token %}
+                                <button type="submit" class="pc-btn pc-btn--primary" style="padding: 6px 14px; min-height: 32px; font-size: 12px; border-radius: 6px; background: #0ca789; border-color: #0ca789;">Reactivate</button>
+                            </form>
                             {% endif %}
                         </td>
                     </tr>

@@ -16,7 +16,13 @@
                 </div>
                 <p class="text-muted small">Authorized roles: Admin, Doctor, Receptionist, Pharmacist, Accountant</p>
 
-                {% if form.errors %}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2">
+                        {% for error in form.non_field_errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% elif form.errors %}
                     <div class="alert alert-danger py-2">Please check your credentials and try again.</div>
                 {% endif %}
 

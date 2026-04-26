@@ -101,6 +101,23 @@
                 if (!field.classList.contains('pc-input')) field.classList.add('pc-input');
             }
         });
+
+        // Set the minimum datetime for start_time and end_time to now
+        // so the browser's native date picker greys out past dates.
+        // Server-side validation remains the authoritative check.
+        const nowIso = new Date().toISOString().slice(0, 16);
+        const startInput = document.getElementById('id_start_time');
+        const endInput   = document.getElementById('id_end_time');
+        if (startInput) startInput.min = nowIso;
+        if (endInput)   endInput.min   = nowIso;
+
+        // When start changes, update end's min to be at least start
+        if (startInput && endInput) {
+            startInput.addEventListener('change', () => {
+                if (startInput.value) endInput.min = startInput.value;
+            });
+        }
+
         if (typeof feather !== 'undefined') feather.replace();
     });
 </script>
