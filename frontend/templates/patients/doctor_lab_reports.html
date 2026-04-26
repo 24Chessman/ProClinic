@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}My Patients' Lab Reports — ProClinic{% endblock %}
+
+{% block content %}
+<div class="pc-section">
+    <div style="margin-bottom: var(--pc-space-5);">
+        <h2 class="pc-h2" style="margin: 0;">{{ title }}</h2>
+        <p class="pc-muted" style="margin-top: 4px;">Review pending and verified lab reports uploaded by your patients.</p>
+    </div>
+
+    <div class="pc-card" style="border-radius: 14px; border-color: #e4eaf2; box-shadow: var(--pc-shadow-soft);">
+        <div class="pc-table-wrap">
+            <table class="pc-table" style="min-width: 100%;">
+                <thead style="background: #f7fafc;">
+                    <tr>
+                        <th style="padding: 16px 24px;">Patient Name</th>
+                        <th style="padding: 16px 14px;">Test Name</th>
+                        <th style="padding: 16px 14px;">Test Date</th>
+                        <th style="padding: 16px 14px;">Uploaded</th>
+                        <th style="padding: 16px 14px;">Review Status</th>
+                        <th style="padding: 16px 24px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td style="padding: 18px 24px; font-weight: 500;">
+                            <a href="{% url 'patient_detail' report.patient.pk %}" style="color: #2c3e91; text-decoration: none;">
+                                {{ report.patient.first_name }} {{ report.patient.last_name }}
+                            </a>
+                        </td>
+                        <td style="padding: 18px 14px; font-weight: 600; color: #1a2e3b;">{{ report.test_name }}</td>
+                        <td style="padding: 18px 14px; color: #596578;">{{ report.report_date|date:"M d, Y" }}</td>
+                        <td style="padding: 18px 14px;">
+                            <div style="color: #596578; font-size: 13px;">{{ report.uploaded_at|date:"M d, Y" }}</div>
+                            <div style="color: #98a1b3; font-size: 11px; margin-top: 2px;">{{ report.uploaded_at|date:"H:i" }}</div>
+                        </td>
+                        <td style="padding: 18px 14px;">
+                            {% if report.status == 'verified' %}
+                                <span class="pc-chip pc-chip--confirmed" style="padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <i data-feather="shield" style="width: 12px; height: 12px;"></i> Verified
+                                </span>
+                            {% elif report.status == 'archived' %}
+                                <span class="pc-chip" style="padding: 5px 12px; font-size: 12px; background: #e4eaf2; color: #596578;">Archived</span>
+                            {% else %}
+                                <span class="pc-chip pc-chip--scheduled" style="padding: 5px 12px; font-size: 12px;">Pending Review</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 18px 24px; text-align: right; white-space: nowrap;">
+                            <a href="{{ report.pdf_file.url }}" target="_blank" class="pc-btn pc-btn--ghost" style="padding: 6px 12px; min-height: 32px; font-size: 13px;">
+                                View PDF
+                            </a>
+
+                            {% if request.user.role == 'ADMIN' or request.user.role == 'DOCTOR' %}
+                                {% if report.status == 'pending' %}
+                                    <form method="post" action="{% url 'lab_report_verify' report.pk %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.path }}">
+                                        <button type="submit" class="pc-btn pc-btn--primary" style="padding: 6px 12px; min-height: 32px; font-size: 13px;">Verify</button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if request.user.role == 'ADMIN' %}
+                                {% if report.status != 'archived' %}
+                                    <form method="post" action="{% url 'lab_report_archive' report.pk %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.path }}">
+                                        <button type="submit" class="pc-btn pc-btn--ghost" style="padding: 6px 12px; min-height: 32px; font-size: 13px; color: #596578;">Archive</button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 80px 20px; color: #8e9aab;">
+                            <i data-feather="folder" style="width: 52px; height: 52px; display: block; margin: 0 auto 16px; opacity: 0.35;"></i>
+                            <div style="font-size: 17px; font-weight: 600; margin-bottom: 6px; color: #37485a;">No lab reports found</div>
+                            <div style="font-size: 14px; margin-bottom: 24px;">Your patients have not uploaded any lab reports yet.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

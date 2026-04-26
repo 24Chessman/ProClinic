@@ -17,7 +17,12 @@
                 <div class="pc-grid">
                     <div class="pc-col-6">
                         <div class="pc-form-row">
-                            <label class="pc-label">{{ form.patient.label }}</label>
+                            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                <label class="pc-label">{{ form.patient.label }}</label>
+                                <a href="#" id="viewEhrLink" class="pc-hidden" target="_blank" style="font-size: 12px; color: #2c3e91; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                                    <i data-feather="external-link" style="width: 12px; height: 12px;"></i> View EHR & Lab Reports
+                                </a>
+                            </div>
                             {{ form.patient }}
                         </div>
                     </div>
@@ -95,6 +100,23 @@
         document.addEventListener('DOMContentLoaded', () => {
             styleNewInputs(document.getElementById('rxForm'));
             feather.replace();
+
+            const patientSelect = document.getElementById('id_patient');
+            const ehrLink = document.getElementById('viewEhrLink');
+            
+            if (patientSelect && ehrLink) {
+                const updateLink = () => {
+                    const patientId = patientSelect.value;
+                    if (patientId) {
+                        ehrLink.href = `/patients/${patientId}/`;
+                        ehrLink.classList.remove('pc-hidden');
+                    } else {
+                        ehrLink.classList.add('pc-hidden');
+                    }
+                };
+                patientSelect.addEventListener('change', updateLink);
+                updateLink(); // Run on load in case a patient is pre-selected
+            }
         });
 
         var addButton = document.getElementById('add-medicine-row');

@@ -145,6 +145,29 @@ def patient_update(request, pk):
     return render(request, 'patients/patient_form.html', context)
 
 @login_required
+def doctor_lab_reports(request):
+    if request.user.role not in {'ADMIN', 'DOCTOR'}:
+        return redirect('dashboard')
+    
+    # Base query for LabReport
+    reports = LabReport.objects.all().select_related('patient')
+
+    # If DOCTOR, restrict to their own patients
+    if request.user.role == 'DOCTOR':
+        reports = reports.filter(
+            patient__appointments__doctor=request.user,
+            patient__appointments__status__in=['SCHEDULED', 'RESCHEDULED', 'COMPLETED', 'CHECKED_IN']
+        ).distinct()
+    
+    reports = reports.order_by('-uploaded_at')
+
+    context = {
+        'reports': reports,
+        'title': 'My Patients\' Lab Reports' if request.user.role == 'DOCTOR' else 'All Lab Reports'
+    }
+    return render(request, 'patients/doctor_lab_reports.html', context)
+
+@login_required
 def lab_report_verify(request, pk):
     # Only DOCTOR and ADMIN may clinically verify a lab report.
     # Receptionists can view but not verify.

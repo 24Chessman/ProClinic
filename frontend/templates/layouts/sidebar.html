@@ -89,6 +89,12 @@
                 </a>
             </li>
             <li>
+                <a href="{% url 'doctor_lab_reports' %}" class="{% if 'lab-reports' in request.path %}is-active{% endif %}">
+                    <i data-feather="clipboard"></i>
+                    <span>Lab Reports</span>
+                </a>
+            </li>
+            <li>
                 <a href="{% url 'doctor_unavailability' %}" class="{% if 'unavailability' in request.path %}is-active{% endif %}">
                     <i data-feather="clock"></i>
                     <span>Availability</span>

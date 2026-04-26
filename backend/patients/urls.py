@@ -7,6 +7,7 @@ from .views import (
     patient_my_prescriptions,
     patient_my_visits,
     patient_my_lab_reports,
+    doctor_lab_reports,
     lab_report_verify,
     lab_report_archive,
     patient_cancel_appointment,
@@ -23,6 +24,9 @@ urlpatterns = [
     path('my/visits/', patient_my_visits, name='patient_my_visits'),
     path('my/lab-reports/', patient_my_lab_reports, name='patient_lab_reports'),
     
+    # Doctor: Lab Reports
+    path('doctor/lab-reports/', doctor_lab_reports, name='doctor_lab_reports'),
+
     # Lab reports staff actions
     path('lab-reports/<int:pk>/verify/', lab_report_verify, name='lab_report_verify'),
     path('lab-reports/<int:pk>/archive/', lab_report_archive, name='lab_report_archive'),
