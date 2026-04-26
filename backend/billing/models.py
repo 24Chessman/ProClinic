@@ -2,7 +2,6 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from patients.models import Patient
 from appointments.models import Appointment
-from cloudinary.models import CloudinaryField
 
 class MedicineMaster(models.Model):
     name = models.CharField(max_length=255, unique=True, help_text="Common name of the medicine")
@@ -40,7 +39,7 @@ class Invoice(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    pdf_file   = CloudinaryField('pdf_file', resource_type='raw', format='pdf', null=True, blank=True)
+    pdf_file   = models.FileField(upload_to='invoices/pdfs/', null=True, blank=True)
 
     def clean(self):
         if any(v < 0 for v in [self.subtotal, self.tax_amount, self.discount_amount, self.grand_total, self.paid_amount, self.due_amount]):

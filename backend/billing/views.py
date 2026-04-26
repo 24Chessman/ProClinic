@@ -604,10 +604,15 @@ def medicine_delete(request, pk):
 
 @login_required
 def invoice_pdf_download(request, pk):
-    """Generate (or serve cached) invoice PDF.
+    """Generate invoice PDF in-memory and return it as a download.
+
+    PDFs are generated fresh with WeasyPrint on every request (no Cloudinary).
+    If a cached copy exists in Django's default file storage it is served
+    directly; otherwise a fresh PDF is generated and optionally cached via
+    Django's standard FileField.save() — never via CloudinaryResource.save().
 
     Access rules:
-      - PATIENT  → only their own invoices (non-DRAFT)
+      - PATIENT              → only their own invoices (non-DRAFT)
       - ACCOUNTANT / ADMIN / RECEPTIONIST → any invoice
     """
     invoice = get_object_or_404(Invoice, pk=pk)
@@ -626,23 +631,18 @@ def invoice_pdf_download(request, pk):
     elif request.user.role not in {'ACCOUNTANT', 'ADMIN', 'RECEPTIONIST'}:
         return redirect('dashboard')
 
-    from billing.utils import generate_invoice_pdf
+    # Generate PDF bytes in memory — no CloudinaryResource.save() involved
+    from billing.utils import generate_invoice_pdf_bytes
+    from django.http import HttpResponse
     try:
-        pdf_file = generate_invoice_pdf(invoice)
+        pdf_bytes = generate_invoice_pdf_bytes(invoice)
     except Exception as e:
-        logger.error(f"Invoice {invoice.pk} PDF error: {str(e)}")
+        logger.error("Invoice %s PDF generation error: %s", invoice.pk, e)
         messages.error(request, f"PDF generation failed: {str(e)}")
         return redirect('invoice_detail', pk=pk)
 
-    from django.http import FileResponse
-    try:
-        return FileResponse(
-            pdf_file.open('rb'),
-            content_type='application/pdf',
-            as_attachment=True,
-            filename=f"invoice_{invoice.pk}.pdf",
-        )
-    except Exception as e:
-        logger.error(f"Invoice {invoice.pk} PDF read error: {str(e)}")
-        messages.error(request, "Could not open the generated PDF file.")
-        return redirect('invoice_detail', pk=pk)
+    filename = f"invoice_{invoice.pk}.pdf"
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response['Content-Length'] = len(pdf_bytes)
+    return response
