@@ -483,41 +483,80 @@ def api_medicines(request):
 
 @login_required
 def api_prescription_context(request):
+    """
+    Return prescription items for a given appointment_id as JSON.
+
+    Lookup order:
+      1. appointment → visit (OneToOne) → prescriptions → items  [primary]
+      2. appointment → prescription (OneToOne, legacy) → items    [fallback]
+
+    Returns: {"items": [...], "error": null | "<message>"}
+    """
     if not _accountant_or_admin(request.user) and request.user.role != 'RECEPTIONIST':
-       return JsonResponse({'items': []})
+        return JsonResponse({'items': [], 'error': 'Unauthorised'})
 
-    appt_id = request.GET.get('appointment_id')
+    appt_id = request.GET.get('appointment_id', '').strip()
     if not appt_id:
-        return JsonResponse({'items': []})
+        return JsonResponse({'items': [], 'error': 'No appointment_id provided'})
 
-    # Find items bound to the prescription mapped by this appointment
     from appointments.models import Appointment
     try:
-        appt = Appointment.objects.get(pk=appt_id)
-        # It's either directly on the prescription or through visit.
-        # Check if Visit exists first
-        items = []
-        if hasattr(appt, 'visit'):
-            for presc in appt.visit.prescriptions.all():
-                for i in presc.items.all():
-                    items.append({
-                        'medicine_name': i.medicine_name,
-                        'dosage': i.dosage,
-                        'instructions': i.instructions,
-                        'duration': i.duration,
-                    })
-        elif hasattr(appt, 'prescription') and appt.prescription:
-            # Fallback legacy binding check
-            for i in appt.prescription.items.all():
+        appt = Appointment.objects.select_related('visit').get(pk=appt_id)
+    except Appointment.DoesNotExist:
+        logger.warning("api_prescription_context: appointment %s not found", appt_id)
+        return JsonResponse({'items': [], 'error': f'Appointment {appt_id} not found'})
+    except Exception as exc:
+        logger.exception("api_prescription_context: DB error fetching appointment %s: %s", appt_id, exc)
+        return JsonResponse({'items': [], 'error': 'Database error fetching appointment'})
+
+    items = []
+
+    # ── Path 1: appointment → Visit → Prescription(s) → PrescriptionItems ─────
+    # Use try/except rather than hasattr() because Django's OneToOne reverse
+    # accessor raises RelatedObjectDoesNotExist (subclass of AttributeError)
+    # when no matching row exists; hasattr() silently catches it too, but an
+    # explicit try/except is clearer and avoids surprising behaviour.
+    try:
+        visit = appt.visit  # raises Visit.DoesNotExist if no linked Visit
+        for presc in visit.prescriptions.select_related().prefetch_related('items').all():
+            for item in presc.items.all():
                 items.append({
-                    'medicine_name': i.medicine_name,
-                    'dosage': i.dosage,
-                    'instructions': i.instructions,
-                    'duration': i.duration,
+                    'medicine_name': item.medicine_name,
+                    'dosage':        item.dosage,
+                    'instructions':  item.instructions,
+                    'duration':      item.duration,
                 })
-        return JsonResponse({'items': items})
-    except Exception as e:
-        return JsonResponse({'items': []})
+        logger.debug(
+            "api_prescription_context: appt=%s via visit=%s → %d items",
+            appt_id, visit.pk, len(items),
+        )
+    except Exception:
+        # No Visit row for this appointment — try the legacy direct link.
+        pass
+
+    # ── Path 2: appointment → Prescription (OneToOneField, legacy) ────────────
+    if not items:
+        try:
+            presc = appt.prescription  # raises if no direct Prescription linked
+            for item in presc.items.all():
+                items.append({
+                    'medicine_name': item.medicine_name,
+                    'dosage':        item.dosage,
+                    'instructions':  item.instructions,
+                    'duration':      item.duration,
+                })
+            logger.debug(
+                "api_prescription_context: appt=%s via legacy prescription=%s → %d items",
+                appt_id, presc.pk, len(items),
+            )
+        except Exception:
+            # No prescription found via either route — return empty list
+            logger.info(
+                "api_prescription_context: appt=%s has no linked Visit or Prescription",
+                appt_id,
+            )
+
+    return JsonResponse({'items': items, 'error': None})
 
 @login_required
 def api_patient_appointments(request):

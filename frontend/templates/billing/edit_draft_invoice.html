@@ -295,27 +295,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── 7. Load Prescribed Medicines button ───────────────────────────────────
-    const fetchBtn = document.getElementById('fetchRxBtn');
+    const fetchBtn  = document.getElementById('fetchRxBtn');
+    // Inline status message shown below the button on success/empty/error
+    const rxStatus  = document.createElement('div');
+    rxStatus.style.cssText = 'font-size:12px;margin-top:6px;display:none;';
+    fetchBtn && fetchBtn.parentNode && fetchBtn.parentNode.insertAdjacentElement('afterend', rxStatus);
+
+    const BTN_LABEL = '<i data-feather="download" style="width:14px;"></i> Load Prescribed Medicines';
+
+    function rxStatusMsg(text, color) {
+        rxStatus.textContent = text;
+        rxStatus.style.color = color || '#596578';
+        rxStatus.style.display = 'block';
+        // Auto-hide after 6 s
+        setTimeout(() => { rxStatus.style.display = 'none'; }, 6000);
+    }
+
     if (fetchBtn && !fetchBtn.disabled) {
         const apptId = '{{ invoice.appointment_id|default:"" }}';
+        console.debug('[ProClinic] Load Prescription: appt_id =', apptId);
+
         fetchBtn.addEventListener('click', async () => {
-            fetchBtn.textContent = 'Loading…';
-            try {
-                const r    = await fetch(`/billing/api/prescription_context/?appointment_id=${apptId}`);
-                const data = await r.json();
-                if (data.items && data.items.length) {
-                    data.items.forEach(i => {
-                        const price = knownMedicines[i.medicine_name.toLowerCase()] || 0;
-                        addLineItem('MEDICINE', i.medicine_name, price, 1,
-                                    `${i.dosage} – ${i.instructions} (${i.duration})`);
-                    });
-                } else {
-                    alert('No medicines found for this appointment.');
-                }
-            } catch(err) { console.error(err); }
-            fetchBtn.innerHTML = '<i data-feather="download" style="width:14px;"></i> Load Prescribed Medicines';
+            fetchBtn.disabled = true;
+            fetchBtn.innerHTML = '<i data-feather="loader" style="width:14px;"></i> Loading…';
             feather.replace();
+            rxStatus.style.display = 'none';
+
+            try {
+                const url = `/billing/api/prescription_context/?appointment_id=${encodeURIComponent(apptId)}`;
+                console.debug('[ProClinic] Fetching prescription context:', url);
+                const response = await fetch(url, { credentials: 'same-origin' });
+
+                if (!response.ok) {
+                    const msg = `Server error ${response.status}: ${response.statusText}`;
+                    console.error('[ProClinic] Prescription fetch HTTP error:', msg);
+                    rxStatusMsg('⚠ ' + msg, '#e23e57');
+                    return;
+                }
+
+                const data = await response.json();
+                console.debug('[ProClinic] Prescription context response:', data);
+
+                // Surface backend-reported errors
+                if (data.error) {
+                    console.warn('[ProClinic] Backend returned error:', data.error);
+                    rxStatusMsg('⚠ ' + data.error, '#e23e57');
+                    return;
+                }
+
+                if (!data.items || data.items.length === 0) {
+                    console.info('[ProClinic] No prescription items found for appt', apptId);
+                    rxStatusMsg('No prescribed medicines found for this appointment.', '#d68400');
+                    return;
+                }
+
+                // Append one MEDICINE row per prescribed item
+                data.items.forEach(item => {
+                    const price = knownMedicines[(item.medicine_name || '').toLowerCase()] || 0;
+                    const notes = [item.dosage, item.instructions, item.duration]
+                                  .filter(Boolean).join(' – ');
+                    addLineItem('MEDICINE', item.medicine_name, price, 1, notes);
+                    console.debug('[ProClinic] Added item:', item.medicine_name, 'price:', price);
+                });
+
+                rxStatusMsg(`✓ Loaded ${data.items.length} medicine(s) from prescription.`, '#0ca789');
+
+            } catch (err) {
+                console.error('[ProClinic] Load Prescription failed:', err);
+                rxStatusMsg('⚠ Could not load prescription: ' + err.message, '#e23e57');
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.innerHTML = BTN_LABEL;
+                feather.replace();
+            }
         });
+    } else if (fetchBtn && fetchBtn.disabled) {
+        console.debug('[ProClinic] Load Prescription button disabled (no linked appointment).');
     }
 });
 </script>
