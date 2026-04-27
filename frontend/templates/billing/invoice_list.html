@@ -171,6 +171,18 @@
                                     <i data-feather="eye" style="width: 12px; height: 12px;"></i> View
                                 </a>
 
+                                {% if user.role in 'ACCOUNTANT,ADMIN' %}
+                                <form method="post" action="{% url 'invoice_send_email_manual' invoice.pk %}" style="margin:0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="pc-btn pc-btn--ghost"
+                                            style="padding: 5px 11px; min-height: 30px; font-size: 12px; border-radius: 7px; display: flex; align-items: center; gap: 4px; color: #0ca789; border-color: #b2e5d9; cursor: pointer;"
+                                            onclick="return confirm('Send an email with invoice details to the patient?');">
+                                        <i data-feather="send" style="width: 12px; height: 12px;"></i> Send Email
+                                    </button>
+                                </form>
+                                {% endif %}
+
                                 {% if invoice.status != 'PAID' and invoice.status != 'REFUNDED' %}
                                 <button class="pc-btn pc-btn--ghost"
                                         style="padding: 5px 12px; min-height: 30px; font-size: 12px; border-radius: 7px; color: #0ca789; border-color: #b2e5d9; background: #f0faf7; display: flex; align-items: center; gap: 4px; cursor: pointer;"

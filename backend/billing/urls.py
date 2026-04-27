@@ -13,6 +13,7 @@ from .views import (
     medicine_list,
     medicine_create,
     medicine_delete,
+    invoice_send_email_manual,
 )
 
 urlpatterns = [
@@ -28,6 +29,7 @@ urlpatterns = [
     path('manage/<int:pk>/edit/', invoice_edit_draft, name='invoice_edit_draft'),
     path('manage/<int:pk>/status/', invoice_update_status, name='invoice_update_status'),
     path('manage/<int:pk>/pdf/', invoice_pdf_download, name='invoice_pdf_download'),
+    path('manage/<int:pk>/send-email/', invoice_send_email_manual, name='invoice_send_email_manual'),
 
     # Medicine catalog CRUD
     path('medicines/', medicine_list, name='medicine_list'),

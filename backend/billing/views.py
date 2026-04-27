@@ -11,7 +11,6 @@ from django.views.decorators.http import require_POST
 from audit.utils import log_action
 from .forms import InvoiceForm, InvoiceItemFormSet
 from .models import Invoice
-from .utils import send_paid_invoice_email
 from patients.models import Patient
 
 logger = logging.getLogger(__name__)
@@ -464,15 +463,66 @@ def invoice_update_status(request, pk):
             f"Invoice #{invoice.pk} ({invoice.patient}) updated: "
             f"{old_display} → {invoice.get_status_display()}.",
         )
-        
-        if new_status == 'PAID':
-            send_paid_invoice_email(invoice)
 
         # Redirect back to wherever the user came from
     next_url = request.POST.get('next', '')
     if next_url and (next_url.startswith('/billing/') or next_url.startswith('/dashboard')):
         return redirect(next_url)
     return redirect('invoice_list')
+
+@require_POST
+@login_required
+def invoice_send_email_manual(request, pk):
+    """
+    POST: manually send an invoice email to the patient.
+    Accountant and Admin only.
+    """
+    if not _accountant_or_admin(request.user):
+        return redirect('dashboard')
+
+    invoice = get_object_or_404(Invoice, pk=pk)
+    patient_email = getattr(invoice.patient, 'email', None)
+
+    if not patient_email:
+        messages.error(request, f"Patient {invoice.patient} does not have an email address on file.")
+        return redirect('invoice_detail', pk=pk)
+
+    from django.core.mail import send_mail
+    from django.conf import settings
+    
+    subject = f"Invoice #{invoice.pk} - ProClinic"
+    message = (
+        f"Dear {invoice.patient.first_name},\n\n"
+        f"Please find the details for your invoice #{invoice.pk} below.\n"
+        f"Status: {invoice.get_status_display()}\n"
+        f"Amount Due: ${invoice.due_amount}\n"
+        f"Total Amount: ${invoice.grand_total}\n\n"
+        f"You can view or download the full invoice PDF from your patient portal.\n\n"
+        f"Thank you for choosing ProClinic.\n\n"
+        f"Best regards,\nProClinic Team"
+    )
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[patient_email],
+            fail_silently=False,
+        )
+        log_action(
+            actor=request.user,
+            action_type='UPDATE',
+            entity_type='Invoice',
+            entity_id=invoice.pk,
+            changes={'action': 'manual_email_sent', 'patient_email': patient_email},
+        )
+        messages.success(request, f"Invoice email successfully sent to {patient_email}.")
+    except Exception as e:
+        logger.error("Failed to send manual email for invoice %s: %s", invoice.pk, e)
+        messages.error(request, f"Failed to send email to {patient_email}. Please try again later.")
+
+    return redirect('invoice_detail', pk=pk)
 
 # ─── Dynamic Billing APIs ───────────────────────────────────────────────────
 

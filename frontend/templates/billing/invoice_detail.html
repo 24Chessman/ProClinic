@@ -72,6 +72,17 @@
             {% endif %}
             {% endif %}
 
+            {% if user.role in 'ACCOUNTANT,ADMIN' %}
+            <form method="post" action="{% url 'invoice_send_email_manual' invoice.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="pc-btn pc-btn--ghost"
+                        style="border-radius: 9px; display: flex; align-items: center; gap: 8px; color: #0ca789; border-color: #b2e5d9;"
+                        onclick="return confirm('Send an email with invoice details to the patient?');">
+                    <i data-feather="send" style="width: 16px; height: 16px;"></i> Send Email
+                </button>
+            </form>
+            {% endif %}
+
             <a href="{% url 'invoice_pdf_download' invoice.pk %}"
                class="pc-btn pc-btn--ghost"
                style="border-radius: 9px; display: flex; align-items: center; gap: 8px; color: #2c3e91; border-color: #c7d2fe;">

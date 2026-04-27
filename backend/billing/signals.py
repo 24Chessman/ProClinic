@@ -22,7 +22,7 @@ from django.dispatch import receiver
 
 from appointments.models import Appointment
 from billing.models import Invoice, InvoiceItem, MedicineMaster
-from billing.utils import get_consultation_fee, send_draft_invoice_email
+from billing.utils import get_consultation_fee
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,6 @@ def create_draft_invoice_on_completion(sender, instance, created, **kwargs):
             "Draft invoice #%s created for appointment #%s (patient: %s).",
             invoice.pk, instance.pk, instance.patient,
         )
-        
-        # Send draft invoice email to patient
-        send_draft_invoice_email(invoice)
 
     except Exception as e:
         # Never let a signal failure break the appointment save
