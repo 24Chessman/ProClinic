@@ -280,6 +280,9 @@ def staff_profile(request):
             form.save()
             messages.success(request, "Profile updated successfully.")
             return redirect('staff_profile')
+    else:
+        form = StaffProfileForm(instance=request.user)
+        
     return render(request, 'accounts/staff_profile.html', {'form': form})
 
 
