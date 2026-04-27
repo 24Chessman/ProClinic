@@ -99,51 +99,36 @@
                     <div style="margin-top: 24px; border-top: 1px solid #f0f4f8; padding-top: 18px;">
                         <p style="font-size: 12px; font-weight: 600; color: #8e9aab; text-transform: uppercase;
                                   letter-spacing: 0.7px; margin-bottom: 10px;">Try asking:</p>
-                        {% for suggestion in suggestions %}
                         <button type="button" class="suggestion-btn"
                                 style="display: block; width: 100%; text-align: left; background: #f7fafc;
                                        border: 1px solid #e4eaf2; border-radius: 8px; padding: 9px 13px;
                                        font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;
                                        transition: background 0.15s ease;">
-                            {{ suggestion }}
-                        </button>
-                        {% empty %}
-                        {% with suggestions="What are the symptoms of high blood pressure?|How do I manage a mild fever at home?|What vitamins should I take daily?|When should I see a doctor for a headache?" %}
-                        {% for s in suggestions|split:"|" %}
-                        <button type="button" class="suggestion-btn"
-                                style="display: block; width: 100%; text-align: left; background: #f7fafc;
-                                       border: 1px solid #e4eaf2; border-radius: 8px; padding: 9px 13px;
-                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;">
-                            {{ s }}
-                        </button>
-                        {% endfor %}
-                        {% endwith %}
-                        {% endfor %}
-                        <button type="button" class="suggestion-btn"
-                                style="display: block; width: 100%; text-align: left; background: #f7fafc;
-                                       border: 1px solid #e4eaf2; border-radius: 8px; padding: 9px 13px;
-                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;">
                             What are symptoms of high blood pressure?
                         </button>
                         <button type="button" class="suggestion-btn"
                                 style="display: block; width: 100%; text-align: left; background: #f7fafc;
                                        border: 1px solid #e4eaf2; border-radius: 8px; padding: 9px 13px;
-                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;">
+                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;
+                                       transition: background 0.15s ease;">
                             How do I manage a mild fever at home?
                         </button>
                         <button type="button" class="suggestion-btn"
                                 style="display: block; width: 100%; text-align: left; background: #f7fafc;
                                        border: 1px solid #e4eaf2; border-radius: 8px; padding: 9px 13px;
-                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;">
+                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;
+                                       transition: background 0.15s ease;">
                             When should I see a doctor for a headache?
                         </button>
                         <button type="button" class="suggestion-btn"
                                 style="display: block; width: 100%; text-align: left; background: #f7fafc;
                                        border: 1px solid #e4eaf2; border-radius: 8px; padding: 9px 13px;
-                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;">
+                                       font-size: 13px; color: #37485a; cursor: pointer; margin-bottom: 6px;
+                                       transition: background 0.15s ease;">
                             What are common signs of vitamin D deficiency?
                         </button>
                     </div>
+
                 </div>
             </div>
         </div>
