@@ -155,7 +155,7 @@ def send_draft_invoice_email(invoice):
         f"Dear {invoice.patient.first_name},\n\n"
         f"A new draft invoice (#{invoice.pk}) has been generated for your recent appointment.\n"
         f"Status: Pending Review\n"
-        f"Amount: ${invoice.grand_total}\n\n"
+        f"Amount: ₹{invoice.grand_total}\n\n"
         f"You can view the details in your patient portal once it is finalized.\n\n"
         f"Thank you,\nProClinic Team"
     )
@@ -183,7 +183,7 @@ def send_paid_invoice_email(invoice):
     subject = f"Payment Confirmation for Invoice #{invoice.pk} - ProClinic"
     message = (
         f"Dear {invoice.patient.first_name},\n\n"
-        f"We have received your payment of ${invoice.paid_amount} for invoice #{invoice.pk}.\n"
+        f"We have received your payment of ₹{invoice.paid_amount} for invoice #{invoice.pk}.\n"
         f"The invoice is now marked as PAID.\n\n"
         f"Thank you for choosing ProClinic.\n\n"
         f"Best regards,\nProClinic Team"

@@ -474,7 +474,7 @@ def invoice_update_status(request, pk):
 @login_required
 def invoice_send_email_manual(request, pk):
     """
-    POST: manually send an invoice email to the patient.
+    POST: manually send an invoice email to the patient with the invoice PDF attached.
     Accountant and Admin only.
     """
     if not _accountant_or_admin(request.user):
@@ -487,37 +487,65 @@ def invoice_send_email_manual(request, pk):
         messages.error(request, f"Patient {invoice.patient} does not have an email address on file.")
         return redirect('invoice_detail', pk=pk)
 
-    from django.core.mail import send_mail
     from django.conf import settings
-    
+    from django.core.mail import EmailMessage
+    from billing.utils import generate_invoice_pdf_bytes
+
     subject = f"Invoice #{invoice.pk} - ProClinic"
-    message = (
+    body = (
         f"Dear {invoice.patient.first_name},\n\n"
-        f"Please find the details for your invoice #{invoice.pk} below.\n"
-        f"Status: {invoice.get_status_display()}\n"
-        f"Amount Due: ${invoice.due_amount}\n"
-        f"Total Amount: ${invoice.grand_total}\n\n"
-        f"You can view or download the full invoice PDF from your patient portal.\n\n"
+        f"Please find your invoice #{invoice.pk} details and the attached PDF below.\n\n"
+        f"  Status      : {invoice.get_status_display()}\n"
+        f"  Grand Total : \u20b9{invoice.grand_total}\n"
+        f"  Amount Due  : \u20b9{invoice.due_amount}\n\n"
+        f"The invoice PDF is attached to this email for your records.\n"
+        f"You can also view or re-download the invoice from your patient portal at any time.\n\n"
         f"Thank you for choosing ProClinic.\n\n"
-        f"Best regards,\nProClinic Team"
+        f"Best regards,\nProClinic Billing Team"
     )
 
+    # Build the email
+    email_msg = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[patient_email],
+    )
+
+    # Attempt to attach PDF — degrade gracefully if generation fails
+    pdf_attached = False
     try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[patient_email],
-            fail_silently=False,
+        pdf_bytes = generate_invoice_pdf_bytes(invoice)
+        filename = f"Invoice_{invoice.pk}.pdf"
+        email_msg.attach(filename, pdf_bytes, "application/pdf")
+        pdf_attached = True
+    except Exception as pdf_err:
+        logger.error(
+            "PDF generation failed for invoice %s (email will send without attachment): %s",
+            invoice.pk, pdf_err,
         )
+
+    try:
+        email_msg.send(fail_silently=False)
         log_action(
             actor=request.user,
             action_type='UPDATE',
             entity_type='Invoice',
             entity_id=invoice.pk,
-            changes={'action': 'manual_email_sent', 'patient_email': patient_email},
+            changes={
+                'action': 'manual_email_sent',
+                'patient_email': patient_email,
+                'pdf_attached': pdf_attached,
+            },
         )
-        messages.success(request, f"Invoice email successfully sent to {patient_email}.")
+        if pdf_attached:
+            messages.success(request, f"Invoice email with PDF attachment sent to {patient_email}.")
+        else:
+            messages.warning(
+                request,
+                f"Invoice email sent to {patient_email}, but the PDF could not be attached. "
+                "Check server logs for details."
+            )
     except Exception as e:
         logger.error("Failed to send manual email for invoice %s: %s", invoice.pk, e)
         messages.error(request, f"Failed to send email to {patient_email}. Please try again later.")

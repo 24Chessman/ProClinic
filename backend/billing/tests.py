@@ -105,24 +105,42 @@ class InvoiceManualEmailTest(TestCase):
         self.url = reverse('invoice_send_email_manual', args=[self.invoice.pk])
         self.client = Client()
 
-    @patch('django.core.mail.send_mail')
-    def test_manual_email_success_accountant(self, mock_send_mail):
+    @patch('billing.utils.generate_invoice_pdf_bytes', return_value=b'%PDF-test')
+    def test_manual_email_success_with_pdf_attachment(self, mock_pdf):
+        """Accountant sends invoice email; email delivered with PDF attached."""
+        from django.core import mail
         self.client.login(username='accountant', password='pw')
         response = self.client.post(self.url)
         self.assertRedirects(response, reverse('invoice_detail', args=[self.invoice.pk]))
-        mock_send_mail.assert_called_once()
-        self.assertEqual(mock_send_mail.call_args[1]['recipient_list'], ['patient1@example.com'])
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertIn('patient1@example.com', sent.to)
+        # Should have one attachment named Invoice_<pk>.pdf
+        self.assertEqual(len(sent.attachments), 1)
+        attachment_name, _, attachment_mime = sent.attachments[0]
+        self.assertEqual(attachment_name, f'Invoice_{self.invoice.pk}.pdf')
+        self.assertEqual(attachment_mime, 'application/pdf')
 
-    @patch('django.core.mail.send_mail')
-    def test_manual_email_forbidden_for_receptionist(self, mock_send_mail):
+    @patch('billing.utils.generate_invoice_pdf_bytes', side_effect=RuntimeError('WeasyPrint failure'))
+    def test_manual_email_sends_without_pdf_on_failure(self, mock_pdf):
+        """If PDF generation fails, email is still sent without attachment."""
+        from django.core import mail
+        self.client.login(username='accountant', password='pw')
+        response = self.client.post(self.url)
+        self.assertRedirects(response, reverse('invoice_detail', args=[self.invoice.pk]))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox[0].attachments), 0)
+
+    def test_manual_email_forbidden_for_receptionist(self):
+        from django.core import mail
         self.client.login(username='receptionist', password='pw')
         response = self.client.post(self.url)
         self.assertRedirects(response, reverse('dashboard'))
-        mock_send_mail.assert_not_called()
+        self.assertEqual(len(mail.outbox), 0)
 
-    @patch('django.core.mail.send_mail')
-    def test_manual_email_forbidden_for_patient(self, mock_send_mail):
+    def test_manual_email_forbidden_for_patient(self):
+        from django.core import mail
         self.client.login(username='patient1', password='pw')
         response = self.client.post(self.url)
         self.assertRedirects(response, reverse('dashboard'))
-        mock_send_mail.assert_not_called()
+        self.assertEqual(len(mail.outbox), 0)
