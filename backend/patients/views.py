@@ -395,17 +395,45 @@ def patient_ai_ask(request):
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel(
-                        model_name='gemini-1.5-flash',
-                        system_instruction=_GEMINI_SYSTEM_PROMPT,
-                    )
-                    response = model.generate_content(question)
-                    ai_response = response.text
+
+                    # Try primary model, fall back to secondary if unavailable.
+                    _MODELS_TO_TRY = ['gemini-2.0-flash', 'gemini-1.5-flash-latest']
+                    last_exc = None
+
+                    for model_name in _MODELS_TO_TRY:
+                        try:
+                            logger_ai.info("Attempting Gemini model: %s", model_name)
+                            model = genai.GenerativeModel(
+                                model_name=model_name,
+                                system_instruction=_GEMINI_SYSTEM_PROMPT,
+                            )
+                            response = model.generate_content(question)
+                            ai_response = response.text
+                            logger_ai.info("Gemini response received from model: %s", model_name)
+                            last_exc = None
+                            break  # success — stop trying further models
+                        except Exception as model_exc:
+                            logger_ai.warning(
+                                "Gemini model '%s' failed: %s — trying next model.",
+                                model_name, model_exc,
+                            )
+                            last_exc = model_exc
+
+                    if last_exc is not None:
+                        # All models failed
+                        logger_ai.error(
+                            "All Gemini models failed. Last error: %s", last_exc
+                        )
+                        error_message = (
+                            "The AI assistant could not process your question right now. "
+                            "Please try again later."
+                        )
+
                 except ImportError:
                     logger_ai.error("google-generativeai package is not installed.")
                     error_message = "AI service is unavailable at this time. Please try again later."
                 except Exception as exc:
-                    logger_ai.error("Gemini API call failed: %s", exc)
+                    logger_ai.error("Unexpected error initialising Gemini client: %s", exc)
                     error_message = "The AI assistant could not process your question right now. Please try again."
 
     return render(request, 'patients/patient_ai_ask.html', {
