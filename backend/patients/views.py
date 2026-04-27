@@ -321,3 +321,96 @@ def patient_cancel_appointment(request, pk):
             messages.error(request, f"Cannot cancel a {appointment.get_status_display()} appointment.")
             
     return redirect('dashboard')
+
+
+# ─── Patient AI Ask View ──────────────────────────────────────────────────────
+
+import logging
+import os
+import json
+
+logger_ai = logging.getLogger(__name__)
+
+_GEMINI_SYSTEM_PROMPT = """You are a helpful health information assistant for ProClinic, a hospital management system.
+Your role is to provide clear, structured, general health information to patients.
+
+IMPORTANT RULES:
+- You are NOT a doctor and cannot diagnose conditions.
+- Always recommend consulting a qualified doctor for diagnosis or treatment.
+- If the question mentions emergency symptoms (chest pain, difficulty breathing, severe bleeding, loss of consciousness, stroke signs), immediately advise the user to call emergency services or visit the nearest emergency room.
+- Format your response using this exact HTML structure:
+
+<div class="ai-response">
+  <h4 class="ai-section-title">Overview</h4>
+  <p>Brief factual overview in 2-3 sentences.</p>
+
+  <h4 class="ai-section-title">Key Points</h4>
+  <ul>
+    <li>...</li>
+  </ul>
+
+  <h4 class="ai-section-title">Practical Advice</h4>
+  <ul>
+    <li>...</li>
+  </ul>
+
+  [If relevant:]
+  <h4 class="ai-section-title warning-title">Warning Signs – Seek Medical Attention If:</h4>
+  <ul>
+    <li>...</li>
+  </ul>
+
+  <h4 class="ai-section-title">When to See a Doctor</h4>
+  <p>...</p>
+</div>
+
+Keep your response helpful, accurate, non-alarmist, and easy to understand for a general patient audience.
+"""
+
+
+@login_required
+def patient_ai_ask(request):
+    """Patient-only: Ask a general health question to Gemini AI."""
+    if request.user.role != 'PATIENT':
+        messages.error(request, "The AI Assistant is only available for patients.")
+        return redirect('dashboard')
+
+    ai_response = None
+    error_message = None
+    question = ''
+
+    if request.method == 'POST':
+        question = request.POST.get('question', '').strip()
+
+        if not question:
+            error_message = "Please enter a question before submitting."
+        elif len(question) > 1000:
+            error_message = "Question is too long. Please keep it under 1000 characters."
+        else:
+            api_key = os.environ.get('GEMINI_API_KEY', '')
+            if not api_key:
+                logger_ai.error("GEMINI_API_KEY environment variable is not set.")
+                error_message = "The AI service is not configured. Please contact support."
+            else:
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel(
+                        model_name='gemini-1.5-flash',
+                        system_instruction=_GEMINI_SYSTEM_PROMPT,
+                    )
+                    response = model.generate_content(question)
+                    ai_response = response.text
+                except ImportError:
+                    logger_ai.error("google-generativeai package is not installed.")
+                    error_message = "AI service is unavailable at this time. Please try again later."
+                except Exception as exc:
+                    logger_ai.error("Gemini API call failed: %s", exc)
+                    error_message = "The AI assistant could not process your question right now. Please try again."
+
+    return render(request, 'patients/patient_ai_ask.html', {
+        'question': question,
+        'ai_response': ai_response,
+        'error_message': error_message,
+    })
+

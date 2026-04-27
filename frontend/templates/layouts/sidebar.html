@@ -217,6 +217,13 @@
                     <span>Research Papers</span>
                 </a>
             </li>
+            <li>
+                <a href="{% url 'patient_ai_ask' %}"
+                   class="{% if 'ai-ask' in request.path %}is-active{% endif %}">
+                    <i data-feather="cpu"></i>
+                    <span>Ask AI</span>
+                </a>
+            </li>
         {% endif %}
 
     </ul>

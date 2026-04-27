@@ -7,37 +7,94 @@ logger = logging.getLogger(__name__)
 
 def send_appointment_notification(appointment, action='created'):
     """
-    Send an email notification for appointment events (created, rescheduled, cancelled).
-    Since email backend might not be configured in development, we catch exceptions.
+    Send a professional email notification for appointment events.
+
+    action: 'created' | 'rescheduled' | 'cancelled'
+
+    Booking must never fail due to email issues — all exceptions are caught and logged.
     """
     if not appointment.patient.email:
-        logger.warning(f"No email for patient {appointment.patient.first_name}, skipping notification.")
+        logger.warning(
+            "No email on record for patient %s — skipping appointment notification.",
+            appointment.patient.first_name,
+        )
         return False
-        
-    subject = f"Appointment {action.capitalize()} - ProClinic"
-    
-    date_str = appointment.scheduled_time.strftime('%Y-%m-%d %H:%M')
-    message = (
-        f"Dear {appointment.patient.first_name},\n\n"
-        f"Your appointment has been {action}.\n"
-        f"Doctor: Dr. {appointment.doctor.get_full_name()}\n"
-        f"Time: {date_str}\n\n"
-        "Thank you,\nProClinic Team"
-    )
-    
+
+    doctor_name = f"Dr. {appointment.doctor.get_full_name() or appointment.doctor.username}"
+    patient_name = appointment.patient.first_name
+    local_time   = timezone.localtime(appointment.scheduled_time)
+    date_str     = local_time.strftime('%A, %d %B %Y')
+    time_str     = local_time.strftime('%I:%M %p')
+    status_str   = appointment.get_status_display() if hasattr(appointment, 'get_status_display') else appointment.status
+
+    if action == 'created':
+        subject = "Appointment Confirmed — ProClinic"
+        body = (
+            f"Dear {patient_name},\n\n"
+            f"Your appointment has been successfully booked at ProClinic. Here are your details:\n\n"
+            f"  Doctor      : {doctor_name}\n"
+            f"  Date        : {date_str}\n"
+            f"  Time        : {time_str}\n"
+            f"  Status      : {status_str}\n"
+        )
+        if hasattr(appointment, 'reason') and appointment.reason:
+            body += f"  Reason      : {appointment.reason}\n"
+        body += (
+            f"\nPlease arrive 10 minutes early and bring any relevant medical records.\n"
+            f"You can view or cancel your appointment from the Patient Portal.\n\n"
+            f"Thank you for choosing ProClinic. We look forward to seeing you.\n\n"
+            f"Warm regards,\nProClinic Team"
+        )
+
+    elif action == 'rescheduled':
+        subject = "Appointment Rescheduled — ProClinic"
+        body = (
+            f"Dear {patient_name},\n\n"
+            f"Your appointment has been rescheduled. Updated details below:\n\n"
+            f"  Doctor      : {doctor_name}\n"
+            f"  New Date    : {date_str}\n"
+            f"  New Time    : {time_str}\n"
+            f"  Status      : {status_str}\n\n"
+            f"If you did not request this change, please contact the clinic immediately.\n\n"
+            f"Thank you,\nProClinic Team"
+        )
+
+    elif action == 'cancelled':
+        subject = "Appointment Cancelled — ProClinic"
+        body = (
+            f"Dear {patient_name},\n\n"
+            f"Your appointment with {doctor_name} on {date_str} at {time_str} has been cancelled.\n\n"
+            f"If you need to rebook, please visit the Patient Portal or contact reception.\n\n"
+            f"Thank you,\nProClinic Team"
+        )
+
+    else:
+        subject = f"Appointment Update — ProClinic"
+        body = (
+            f"Dear {patient_name},\n\n"
+            f"Your appointment with {doctor_name} on {date_str} at {time_str} has been updated "
+            f"(status: {status_str}).\n\n"
+            f"Thank you,\nProClinic Team"
+        )
+
     try:
         sender_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@proclinic.local')
         send_mail(
             subject=subject,
-            message=message,
+            message=body,
             from_email=sender_email,
             recipient_list=[appointment.patient.email],
-            fail_silently=True
+            fail_silently=True,   # booking must never crash due to email
+        )
+        logger.info(
+            "Appointment %s notification (%s) sent to %s.",
+            appointment.pk, action, appointment.patient.email,
         )
         return True
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
+        logger.error("Failed to send appointment %s email for appt %s: %s", action, appointment.pk, e)
         return False
+
 
 
 def send_lab_report_notification(report, patient_profile):

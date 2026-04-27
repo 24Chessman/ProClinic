@@ -11,6 +11,7 @@ from .views import (
     lab_report_verify,
     lab_report_archive,
     patient_cancel_appointment,
+    patient_ai_ask,
 )
 
 urlpatterns = [
@@ -30,4 +31,7 @@ urlpatterns = [
     # Lab reports staff actions
     path('lab-reports/<int:pk>/verify/', lab_report_verify, name='lab_report_verify'),
     path('lab-reports/<int:pk>/archive/', lab_report_archive, name='lab_report_archive'),
+
+    # AI Assistant (patient-only)
+    path('my/ai-ask/', patient_ai_ask, name='patient_ai_ask'),
 ]
