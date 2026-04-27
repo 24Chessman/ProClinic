@@ -11,6 +11,9 @@ from .views import (
     patient_signup,
     deactivate_staff_account,
     reactivate_staff_account,
+    patient_forgot_password_request,
+    patient_forgot_password_verify,
+    patient_forgot_password_reset,
 )
 
 
@@ -25,4 +28,9 @@ urlpatterns = [
     path('staff/deactivate/<int:pk>/', deactivate_staff_account, name='deactivate_staff'),
     path('staff/reactivate/<int:pk>/', reactivate_staff_account, name='reactivate_staff'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    
+    # Patient forgot password
+    path('login/patient/forgot-password/', patient_forgot_password_request, name='patient_forgot_password_request'),
+    path('login/patient/forgot-password/verify/', patient_forgot_password_verify, name='patient_forgot_password_verify'),
+    path('login/patient/forgot-password/reset/', patient_forgot_password_reset, name='patient_forgot_password_reset'),
 ]

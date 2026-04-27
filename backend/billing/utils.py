@@ -138,3 +138,65 @@ def _make_invoice_response(pdf_bytes: bytes, invoice) -> HttpResponse:
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     response["Content-Length"] = len(pdf_bytes)
     return response
+
+# ── Email Notifications ───────────────────────────────────────────────────────
+
+from django.core.mail import send_mail
+
+def send_draft_invoice_email(invoice):
+    """Send an email notification when a draft invoice is generated."""
+    patient_email = getattr(invoice.patient, 'email', None)
+    if not patient_email:
+        logger.info("Skipping draft invoice email for invoice %s: No patient email.", invoice.pk)
+        return
+
+    subject = f"Invoice #{invoice.pk} Generated - ProClinic"
+    message = (
+        f"Dear {invoice.patient.first_name},\n\n"
+        f"A new draft invoice (#{invoice.pk}) has been generated for your recent appointment.\n"
+        f"Status: Pending Review\n"
+        f"Amount: ${invoice.grand_total}\n\n"
+        f"You can view the details in your patient portal once it is finalized.\n\n"
+        f"Thank you,\nProClinic Team"
+    )
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[patient_email],
+            fail_silently=False,
+        )
+        logger.info("Successfully sent draft invoice email for invoice %s to %s", invoice.pk, patient_email)
+    except Exception as e:
+        logger.error("Failed to send draft invoice email for invoice %s: %s", invoice.pk, e)
+
+
+def send_paid_invoice_email(invoice):
+    """Send an email notification when an invoice is marked as PAID."""
+    patient_email = getattr(invoice.patient, 'email', None)
+    if not patient_email:
+        logger.info("Skipping paid invoice email for invoice %s: No patient email.", invoice.pk)
+        return
+
+    subject = f"Payment Confirmation for Invoice #{invoice.pk} - ProClinic"
+    message = (
+        f"Dear {invoice.patient.first_name},\n\n"
+        f"We have received your payment of ${invoice.paid_amount} for invoice #{invoice.pk}.\n"
+        f"The invoice is now marked as PAID.\n\n"
+        f"Thank you for choosing ProClinic.\n\n"
+        f"Best regards,\nProClinic Team"
+    )
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[patient_email],
+            fail_silently=False,
+        )
+        logger.info("Successfully sent paid invoice email for invoice %s to %s", invoice.pk, patient_email)
+    except Exception as e:
+        logger.error("Failed to send paid invoice email for invoice %s: %s", invoice.pk, e)

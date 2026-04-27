@@ -280,7 +280,136 @@ def staff_profile(request):
             form.save()
             messages.success(request, "Profile updated successfully.")
             return redirect('staff_profile')
-    else:
-        form = StaffProfileForm(instance=request.user)
-
     return render(request, 'accounts/staff_profile.html', {'form': form})
+
+
+# ── Patient Forgot Password Flow ───────────────────────────────────────────────
+
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth.forms import SetPasswordForm
+from .models import PatientOTP
+from django.utils import timezone
+from datetime import timedelta
+
+def patient_forgot_password_request(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        identifier = request.POST.get('identifier', '').strip()
+        
+        # Non-enumerating response setup
+        success_msg = "If an account matches that identifier, an OTP has been sent to your registered email."
+        
+        user = CustomUser.objects.filter(
+            Q(username=identifier) | Q(email=identifier),
+            role='PATIENT',
+            is_active=True
+        ).first()
+
+        if user and user.email:
+            # Check cooldown (e.g. 2 minutes)
+            recent_otp = PatientOTP.objects.filter(user=user).order_by('-created_at').first()
+            if recent_otp and (timezone.now() - recent_otp.created_at) < timedelta(minutes=2):
+                # Don't say "wait 2 mins", just show success message to prevent enumeration 
+                # but actually don't send another email. Or we can show the cooldown message
+                # since they already know the identifier is valid if we do. 
+                # To be strictly non-enumerating, we just act like it worked.
+                pass
+            else:
+                otp = PatientOTP.generate(user)
+                
+                subject = "Your ProClinic Password Reset OTP"
+                message = f"Hello {user.first_name or user.username},\n\nYour password reset OTP is: {otp.otp_code}\n\nThis OTP will expire in 10 minutes.\nIf you did not request this, please ignore this email.\n\nProClinic Team"
+                
+                try:
+                    send_mail(
+                        subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False
+                    )
+                except Exception as e:
+                    logger.error("Failed to send OTP to %s: %s", user.email, e)
+
+        # Always store the identifier in session so verify step knows who is trying
+        # We store it even if invalid, to keep it non-enumerating
+        request.session['reset_identifier'] = identifier
+        messages.success(request, success_msg)
+        return redirect('patient_forgot_password_verify')
+
+    return render(request, 'accounts/forgot_password_request.html')
+
+
+def patient_forgot_password_verify(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+        
+    identifier = request.session.get('reset_identifier')
+    if not identifier:
+        return redirect('patient_forgot_password_request')
+
+    if request.method == 'POST':
+        otp_code = request.POST.get('otp', '').strip()
+        
+        user = CustomUser.objects.filter(
+            Q(username=identifier) | Q(email=identifier),
+            role='PATIENT',
+            is_active=True
+        ).first()
+        
+        if user:
+            otp_obj = PatientOTP.objects.filter(user=user, otp_code=otp_code).order_by('-created_at').first()
+            if otp_obj and otp_obj.is_valid():
+                # Mark used immediately
+                otp_obj.is_used = True
+                otp_obj.save()
+                
+                request.session['can_reset_password'] = True
+                request.session['reset_user_id'] = user.id
+                messages.success(request, "OTP verified successfully. Please enter your new password.")
+                return redirect('patient_forgot_password_reset')
+        
+        # Invalid or expired
+        messages.error(request, "Invalid or expired OTP.")
+        
+    return render(request, 'accounts/forgot_password_verify.html', {'identifier': identifier})
+
+
+def patient_forgot_password_reset(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+        
+    if not request.session.get('can_reset_password'):
+        return redirect('patient_forgot_password_request')
+        
+    user_id = request.session.get('reset_user_id')
+    user = get_object_or_404(CustomUser, id=user_id, role='PATIENT')
+
+    if request.method == 'POST':
+        form = SetPasswordForm(user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            
+            # Clear session vars
+            request.session.pop('reset_identifier', None)
+            request.session.pop('can_reset_password', None)
+            request.session.pop('reset_user_id', None)
+            
+            # Log them in
+            login(request, user)
+            
+            AuditLog.objects.create(
+                actor=user,
+                action_type='UPDATE',
+                entity_type='CustomUser',
+                entity_id=user.pk,
+                changes={'action': 'password_reset_via_otp'},
+            )
+            
+            messages.success(request, "Your password has been successfully reset.")
+            return redirect('dashboard')
+    else:
+        form = SetPasswordForm(user)
+
+    return render(request, 'accounts/forgot_password_reset.html', {'form': form})
+

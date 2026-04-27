@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from audit.utils import log_action
 from .forms import InvoiceForm, InvoiceItemFormSet
 from .models import Invoice
+from .utils import send_paid_invoice_email
 from patients.models import Patient
 
 logger = logging.getLogger(__name__)
@@ -463,6 +464,9 @@ def invoice_update_status(request, pk):
             f"Invoice #{invoice.pk} ({invoice.patient}) updated: "
             f"{old_display} → {invoice.get_status_display()}.",
         )
+        
+        if new_status == 'PAID':
+            send_paid_invoice_email(invoice)
 
         # Redirect back to wherever the user came from
     next_url = request.POST.get('next', '')
