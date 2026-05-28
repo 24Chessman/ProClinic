@@ -1,257 +1,180 @@
-<![CDATA[<div align="center">
+# ProClinic
 
-# 🏥 ProClinic
-
-**Intelligent Clinic Management System**
-
-[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Django 6.0](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![DRF 3.16](https://img.shields.io/badge/DRF-3.16-ff1709?logo=django&logoColor=white)](https://www.django-rest-framework.org/)
-[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)](https://render.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-A full-stack, role-based clinic management platform built with Django 6.0 and Django REST Framework. ProClinic digitizes the complete clinical workflow — from patient registration and appointment scheduling through prescription generation, billing, lab report management, and research publication review — with six distinct user roles, PDF export, Cloudinary media storage, AI-powered health assistant, automated audit logging, and production-ready deployment on Render.
-
-[Live Demo](https://proclinic-lx2u.onrender.com) · [API Docs](#api-overview) · [Architecture](#system-architecture) · [Getting Started](#installation-guide)
-
-</div>
+> **A full-stack Hospital Management System** built with Django 6, Django REST Framework, and WeasyPrint. Designed for Indian clinics and hospitals, ProClinic covers patient registration, appointment scheduling, electronic health records (EHR), prescriptions, billing, lab reports, research publication management, and a fully automated audit trail.
 
 ---
 
 ## Table of Contents
 
-- [Executive Summary](#executive-summary)
-- [Key Features](#key-features)
-- [Technology Stack](#technology-stack)
-- [System Architecture](#system-architecture)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Installation Guide](#installation-guide)
-- [Environment Configuration](#environment-configuration)
-- [Database Setup](#database-setup)
-- [Running the Application](#running-the-application)
-- [Development Workflow](#development-workflow)
-- [Testing](#testing)
-- [API Overview](#api-overview)
-- [Authentication & Authorization](#authentication--authorization)
-- [Configuration Reference](#configuration-reference)
-- [Deployment](#deployment)
-- [Security Considerations](#security-considerations)
-- [Monitoring & Logging](#monitoring--logging)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+1. [Executive Summary](#executive-summary)
+2. [Key Features](#key-features)
+3. [Technology Stack](#technology-stack)
+4. [System Architecture](#system-architecture)
+5. [Project Structure](#project-structure)
+6. [Prerequisites](#prerequisites)
+7. [Installation Guide](#installation-guide)
+8. [Environment Configuration](#environment-configuration)
+9. [Database Setup and Migrations](#database-setup-and-migrations)
+10. [Running the Application](#running-the-application)
+11. [Development Workflow](#development-workflow)
+12. [Build Instructions](#build-instructions)
+13. [Testing Strategy and Commands](#testing-strategy-and-commands)
+14. [API Overview and Endpoints](#api-overview-and-endpoints)
+15. [Authentication and Authorization](#authentication-and-authorization)
+16. [Configuration Reference](#configuration-reference)
+17. [Deployment Instructions](#deployment-instructions)
+18. [Security Considerations](#security-considerations)
+19. [Performance Notes](#performance-notes)
+20. [Monitoring and Logging](#monitoring-and-logging)
+21. [Management Commands](#management-commands)
+22. [Troubleshooting](#troubleshooting)
+23. [Contributing Guidelines](#contributing-guidelines)
+24. [License Information](#license-information)
 
 ---
 
 ## Executive Summary
 
-ProClinic is a comprehensive, production-grade clinic management system designed to serve multi-role medical facilities. It implements a monolithic Django architecture with a server-rendered frontend (Django templates) and a parallel RESTful JSON API (Django REST Framework + JWT), enabling both traditional web sessions and programmatic access.
+ProClinic is a monolithic Django application structured around eight self-contained Django apps. It provides two distinct portal experiences: a **staff portal** (admin, doctors, receptionists, pharmacists, accountants) served through server-rendered HTML templates, and a **patient portal** accessed both through session-based HTML pages and a JWT-authenticated REST API under `/api/patient/`.
 
-The system supports **six user roles** — Administrator, Doctor, Receptionist, Pharmacist, Accountant, and Patient — each with a dedicated dashboard, granular permissions, and role-specific workflows. Key clinical workflows (appointment completion → draft invoice generation, prescription → pharmacy dispensing) are automated via Django signals, and every data mutation is captured by a comprehensive audit logging subsystem.
+The system was designed for deployment on [Render](https://render.com/)'s free tier with PostgreSQL and Cloudinary for media storage, but runs equally well locally with SQLite and the filesystem. Every write operation on key clinical entities is automatically captured in an immutable `AuditLog` via Django signals—no additional instrumentation is required.
 
 ---
 
 ## Key Features
 
-### 👤 Multi-Role Access Control
-- **6 distinct roles**: Admin, Doctor, Receptionist, Pharmacist, Accountant, Patient
-- Role-based login portals (Staff vs. Patient) with separate authentication flows
-- Custom permission classes enforcing API-level and view-level access control
-- OTP-based password recovery for patients via email (Gmail SMTP)
+### Clinical Operations
+- **Patient Registration** — Staff or patients self-register with full demographic and medical data (blood group, allergies, DOB)
+- **Appointment Scheduling** — Book, reschedule, cancel; double-booking prevention; doctor unavailability blocks; automatic no-show marking via management command
+- **Electronic Health Records (EHR)** — `Visit` records link appointments to clinical notes and diagnosis
+- **Prescription Management** — Doctors create multi-item prescriptions tied to a visit; pharmacists manage a dispense queue; PDF export via WeasyPrint
+- **Lab Reports** — Upload/download PDF lab reports (max 5 MB); staff verify or archive; email notifications to treating doctors on upload
+- **Billing & Invoicing** — Itemised invoices (consultation, medicine, lab, procedure, other); automatic draft invoice generated when an appointment is marked COMPLETED; GST calculation; PDF download; email notifications on draft and payment
+- **Medicine Catalogue** — `MedicineMaster` for standard pricing; auto-populated from prescriptions into draft invoices
 
-### 📅 Appointment Management
-- Patient self-service booking with real-time doctor availability checks
-- Double-booking prevention (doctor-level and patient-level conflict detection)
-- Doctor unavailability block scheduling
-- Receptionist appointment management: cancel, reschedule, check-in, mark no-show
-- Status lifecycle: `SCHEDULED` → `CHECKED_IN` → `COMPLETED` → `CANCELLED` / `NOSHOW` / `RESCHEDULED`
+### Research Module
+- Doctors submit research papers (PDF + abstract + authors)
+- Admin review queue: approve → paper becomes publicly visible; reject → rejection reason shown to doctor
+- Public listing at `/publications/` and `/api/publications/public-list/` (no auth required)
 
-### 📋 Electronic Health Records (EHR)
-- Patient profiles with demographics, blood group, allergies, and contact information
-- Visit records linked to appointments with diagnosis and clinical notes
-- Lab report management with PDF upload (Cloudinary), verification, and archival workflow
-- Patient self-service portal: view visits, prescriptions, invoices, and lab reports
+### AI Health Assistant
+- Patient-exclusive feature powered by **Google Gemini 2.5 Flash**
+- Structured, safe health information responses with emergency escalation logic
+- Enforced 1000-character question limit; quota-aware error handling
 
-### 💊 Prescription Management
-- Doctor-created prescriptions linked to clinical visits
-- Multi-item prescriptions with medicine name, dosage, instructions, and duration
-- PDF export via WeasyPrint with A4 print-ready templates
-- Pharmacist dispensing workflow with status tracking (`PENDING` → `DISPENSED`)
+### Administration
+- Role-based dashboard with context-specific KPIs for each role
+- Full CRUD user management (create / deactivate / reactivate staff accounts)
+- Complete audit trail (CREATE / UPDATE / DELETE / LOGIN) with before/after diffs
+- Django admin integration for all models
 
-### 💰 Billing & Invoicing
-- Automated draft invoice generation on appointment completion (via Django signals)
-- Line-item support: Consultation, Medicine, Lab/Test, Procedure, Other
-- Financial breakdown: subtotal, tax (GST), discount, grand total, paid/due amounts
-- Medicine master catalog with default pricing
-- Invoice lifecycle: `DRAFT` → `UNPAID` → `PARTIAL` → `PAID` → `REFUNDED`
-- PDF invoice generation and email delivery
-
-### 📄 Research Publications
-- Doctors submit research papers with PDF uploads
-- Admin approval/rejection workflow with reviewer notes
-- Public listing of approved publications (no authentication required)
-- Patient-facing publications portal
-
-### 🤖 AI Health Assistant
-- Google Gemini-powered conversational health assistant for patients
-- Contextual responses based on patient medical history
-
-### 📊 Audit & Compliance
-- Automatic audit logging via Django signals (`pre_save`, `post_save`, `post_delete`)
-- Tracks 6 entity types: Patient, Appointment, Prescription, Invoice, Publication, LabReport
-- Records actor, action type (CREATE/UPDATE/DELETE), before/after diffs in JSON
-- Sensitive fields (passwords, tokens) are automatically excluded from logs
-- Admin-accessible audit log viewer with filtering and search
-
-### 📄 PDF Generation
-- WeasyPrint-based server-side PDF rendering for prescriptions and invoices
-- A4 print-ready templates with clinic branding
-- Cloudinary storage for generated PDFs in production
+### Developer & Infrastructure
+- Dual authentication: Django session auth (browser) + JWT (API clients)
+- Argon2 password hashing
+- Docker + Docker Compose for local development
+- One-click Render Blueprint deployment (`render.yaml`)
+- WhiteNoise for static file serving in production
+- Cloudinary for media uploads in production (falls back to local filesystem)
 
 ---
 
 ## Technology Stack
 
-### Backend
-
-| Technology | Version | Purpose |
+| Category | Technology | Version |
 |---|---|---|
-| Python | 3.12 | Runtime |
-| Django | 6.0.1 | Web framework |
-| Django REST Framework | 3.16.1 | REST API layer |
-| SimpleJWT | 5.5.1 | JWT authentication for API |
-| django-filter | 25.2 | Queryset filtering for API and views |
-| django-environ | 0.12.0 | Environment variable management |
-| django-cors-headers | 4.9.0 | Cross-Origin Resource Sharing |
-| psycopg2-binary | 2.9.11 | PostgreSQL adapter |
-| Gunicorn | 25.3.0 | Production WSGI server |
-| WhiteNoise | 6.12.0 | Static file serving in production |
-| WeasyPrint | 68.1 | HTML → PDF generation |
-| Pillow | 12.2.0 | Image processing |
-| Cloudinary | 1.44.0 | Cloud media storage |
-| django-cloudinary-storage | 0.3.0 | Django ↔ Cloudinary integration |
-| Argon2-cffi | 25.1.0 | Password hashing (primary hasher) |
-| google-generativeai | 0.8.3 | AI health assistant (Gemini API) |
-
-### Frontend
-
-| Technology | Purpose |
-|---|---|
-| Django Templates | Server-side HTML rendering |
-| Custom CSS Design System | Component-based styling (`design-system.css`) |
-| Vanilla JavaScript | Client-side interactivity, AJAX calls |
-| SVG Icons | Custom icon set for UI components |
-
-### Infrastructure
-
-| Technology | Purpose |
-|---|---|
-| PostgreSQL 16 | Production database |
-| SQLite | Local development database (fallback) |
-| Redis 7 | Cache / message broker (Docker Compose) |
-| Docker | Containerization |
-| Render | Cloud hosting (free tier) |
-| Cloudinary | Media file storage (PDFs, images) |
+| Web framework | Django | 6.0.1 |
+| REST API | Django REST Framework | 3.16.1 |
+| JWT auth | djangorestframework-simplejwt | 5.5.1 |
+| Database (dev) | SQLite | bundled |
+| Database (prod) | PostgreSQL | 16 (Alpine) |
+| Cache/queue | Redis | 7 (Alpine, Docker only) |
+| PDF generation | WeasyPrint | 68.1 |
+| Media storage | Cloudinary | 1.44.0 |
+| Static files | WhiteNoise | 6.12.0 |
+| Password hashing | argon2-cffi | 25.1.0 |
+| Filtering | django-filter | 25.2 |
+| CORS | django-cors-headers | 4.9.0 |
+| Image processing | Pillow | 12.2.0 |
+| Env management | django-environ | 0.12.0 |
+| AI assistant | google-generativeai | 0.8.3 |
+| WSGI server | Gunicorn | 25.3.0 |
+| Language | Python | 3.12 |
 
 ---
 
 ## System Architecture
 
-```mermaid
-graph TB
-    subgraph Client["Client Layer"]
-        Browser["Web Browser"]
-        APIClient["API Client / Mobile App"]
-    end
+ProClinic is a **monolithic Django application** with a layered architecture:
 
-    subgraph Server["Django Application"]
-        direction TB
-        subgraph Middleware["Middleware Stack"]
-            Security["SecurityMiddleware"]
-            WhiteNoise["WhiteNoise"]
-            Session["SessionMiddleware"]
-            CORS["CorsMiddleware"]
-            CSRF["CsrfMiddleware"]
-            Auth["AuthenticationMiddleware"]
-            Audit["AuditUserMiddleware"]
-        end
-
-        subgraph Auth_Layer["Authentication"]
-            SessionAuth["Session Auth (Web)"]
-            JWTAuth["JWT Auth (API)"]
-        end
-
-        subgraph Apps["Application Modules"]
-            Accounts["accounts"]
-            Patients["patients"]
-            Appointments["appointments"]
-            Prescriptions["prescriptions"]
-            Billing["billing"]
-            Publications["publications"]
-            AuditApp["audit"]
-            API["api"]
-        end
-
-        subgraph Templates_Layer["Frontend"]
-            Templates["Django Templates"]
-            Static["Static Assets"]
-        end
-    end
-
-    subgraph External["External Services"]
-        PostgreSQL["PostgreSQL 16"]
-        Cloudinary_Svc["Cloudinary CDN"]
-        Gmail["Gmail SMTP"]
-        Gemini["Google Gemini AI"]
-    end
-
-    Browser -->|"Session Cookie"| SessionAuth
-    APIClient -->|"Bearer JWT"| JWTAuth
-    Auth_Layer --> Apps
-    Apps --> PostgreSQL
-    Apps -->|"Media Uploads"| Cloudinary_Svc
-    Apps -->|"Email"| Gmail
-    Apps -->|"AI Queries"| Gemini
-    Apps --> Templates_Layer
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                            Client Layer                                │
+│                                                                        │
+│   ┌──────────────────┐              ┌──────────────────────────────┐   │
+│   │  Web Browser     │              │  API Client (mobile / curl)  │   │
+│   │  HTML/CSS/JS     │              │  JSON + JWT Bearer token     │   │
+│   └────────┬─────────┘              └──────────────┬───────────────┘   │
+└────────────┼───────────────────────────────────────┼───────────────────┘
+             │ HTTP                                  │ HTTP
+             ▼                                       ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Django Application                              │
+│                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │               WSGI / Gunicorn (production)                       │  │
+│  └─────────────────────────┬────────────────────────────────────────┘  │
+│                            │                                           │
+│  ┌─────────────────────────▼────────────────────────────────────────┐  │
+│  │               URL Router  (core/urls.py)                         │  │
+│  └───┬────────────────────────────┬──────────────────────┬──────────┘  │
+│      │ /api/*                     │ /accounts/*          │ /*          │
+│      ▼                            ▼                      ▼             │
+│  ┌─────────┐   ┌──────────────────────────┐  ┌───────────────────┐     │
+│  │ DRF     │   │ Authentication Views     │  │ App Views         │     │
+│  │ViewSets │   │ (login/logout/signup/OTP)│  │ (HTML templates)  │     │
+│  └────┬────┘   └──────────────────────────┘  └─────────┬─────────┘     │
+│       │                                                │               │
+│  ┌────▼────────────────────────────────────────────────▼────────────┐  │
+│  │          Business Logic (Models + Managers + Services)           │  │
+│  │                                                                  │  │
+│  │  accounts  patients  appointments  prescriptions  billing        │  │
+│  │  publications  audit                                             │  │
+│  └───────────────────────────┬──────────────────────────────────────┘  │
+│                              │ Django Signals (pre_save / post_save    │
+│                              │                / post_delete)           │
+│  ┌───────────────────────────▼──────────────────────────────────────┐  │
+│  │          Audit App  (audit/signals.py + middleware)              │  │
+│  │   Captures CREATE / UPDATE / DELETE for all key entities         │  │
+│  │   Actor resolved via AuditUserMiddleware → threading.local       │  │
+│  └───────────────────────────┬──────────────────────────────────────┘  │
+└──────────────────────────────┼─────────────────────────────────────────┘
+                               │ Django ORM
+                   ┌───────────▼───────────┐
+                   │  Database             │
+                   │  SQLite (dev)         │
+                   │  PostgreSQL 16 (prod) │
+                   └───────────────────────┘
 ```
 
-### Data Flow: Appointment → Invoice (Signal-Driven)
+### Django App Responsibilities
 
-```mermaid
-sequenceDiagram
-    participant D as Doctor
-    participant App as Appointment Model
-    participant Sig as billing.signals
-    participant Inv as Invoice Model
-    participant Med as MedicineMaster
+| App | Responsibility |
+|---|---|
+| `core` | Project settings, root URL config, base views (dashboard router, home, design system), WSGI/ASGI |
+| `accounts` | `CustomUser` model (role-aware), dual login/logout views, patient signup, OTP-based password reset |
+| `patients` | `Patient`, `Visit`, `LabReport` models; staff CRUD views; patient self-service; AI Ask endpoint |
+| `appointments` | `Appointment`, `DoctorUnavailability`; booking/cancel/reschedule logic; slot availability API |
+| `prescriptions` | `Prescription`, `PrescriptionItem`; WeasyPrint PDF export; pharmacist dispense queue |
+| `billing` | `Invoice`, `InvoiceItem`, `MedicineMaster`; auto-draft signal; PDF generation; email notifications |
+| `publications` | Research paper submission → admin approval workflow → public listing |
+| `audit` | `AuditLog` model; Django signals for all tracked entities; `AuditUserMiddleware` |
+| `api` | DRF ViewSets, serializers, filters, pagination classes, JWT auth endpoints, patient-facing REST API |
 
-    D->>App: Mark appointment COMPLETED
-    App->>App: post_save signal fires
-    App->>Sig: create_draft_invoice_on_completion()
-    Sig->>Inv: Create DRAFT Invoice
-    Sig->>Inv: Add CONSULTATION line item
-    Sig->>Med: Lookup medicine prices
-    Sig->>Inv: Add MEDICINE line items from prescription
-    Sig->>Inv: recalculate_totals()
-    Note over Inv: Invoice ready for Accountant review
-```
+### Automatic Draft Invoice Signal
 
-### Audit Logging Pipeline
-
-```mermaid
-flowchart LR
-    A["Model Save/Delete"] --> B["Django Signal"]
-    B --> C{"Is Tracked Model?"}
-    C -->|Yes| D["Capture old state (pre_save)"]
-    D --> E["Compute diff (post_save)"]
-    E --> F["Write AuditLog entry"]
-    C -->|No| G["Skip"]
-    F --> H["AuditLog Table"]
-    H --> I["Admin Viewer / API"]
-```
+When an `Appointment` transitions to `COMPLETED`, a `post_save` signal in `billing/signals.py` automatically generates a **DRAFT invoice** pre-populated with:
+- A consultation line item (priced from `settings.CONSULTATION_FEE`)
+- Medicine line items sourced from any `Prescription` linked via the `Visit` record (priced from `MedicineMaster`)
 
 ---
 
@@ -259,126 +182,91 @@ flowchart LR
 
 ```
 ProClinic/
-├── backend/                    # Django project root
-│   ├── manage.py               # Django management entry point
-│   ├── create_admin.py         # Auto-creates admin superuser on deploy
-│   ├── .env                    # Local environment variables (not committed)
-│   │
-│   ├── core/                   # Django project settings & config
-│   │   ├── settings.py         # Main settings (DB, auth, middleware, REST, etc.)
-│   │   ├── urls.py             # Root URL configuration
-│   │   ├── views.py            # Home, dashboard, design-system views
-│   │   ├── wsgi.py             # WSGI entry point
-│   │   ├── asgi.py             # ASGI entry point
-│   │   └── utils.py            # Email notification helpers
-│   │
-│   ├── accounts/               # Authentication & user management
-│   │   ├── models.py           # CustomUser (6 roles), PatientOTP
-│   │   ├── views.py            # Login, signup, profile, staff CRUD, OTP password reset
-│   │   ├── forms.py            # PatientSignUpForm, StaffCreationForm, ProfileForms
-│   │   ├── urls.py             # Auth routes (/accounts/*)
-│   │   └── admin.py            # CustomUserAdmin
-│   │
-│   ├── patients/               # Patient records & EHR
-│   │   ├── models.py           # Patient, Visit, LabReport
-│   │   ├── views.py            # Patient CRUD, lab reports, AI assistant
-│   │   ├── serializers.py      # PatientSerializer (DRF)
-│   │   ├── urls.py             # Patient routes (/patients/*)
-│   │   └── utils.py            # Patient profile helpers
-│   │
-│   ├── appointments/           # Scheduling & availability
-│   │   ├── models.py           # Appointment, DoctorUnavailability
-│   │   ├── views.py            # Booking, doctor/receptionist views, slot API
-│   │   ├── forms.py            # AppointmentForm, UnavailabilityForm, VisitNoteForm
-│   │   └── urls.py             # Appointment routes (/appointments/*)
-│   │
-│   ├── prescriptions/          # Medication management
-│   │   ├── models.py           # Prescription, PrescriptionItem
-│   │   ├── views.py            # Create, pharmacist list/detail, dispense
-│   │   ├── utils.py            # PDF generation (WeasyPrint)
-│   │   └── urls.py             # Prescription routes (/prescriptions/*)
-│   │
-│   ├── billing/                # Financial management
-│   │   ├── models.py           # Invoice, InvoiceItem, MedicineMaster
-│   │   ├── views.py            # Invoice CRUD, medicine catalog, PDF download
-│   │   ├── signals.py          # Auto-create draft invoice on appointment completion
-│   │   ├── utils.py            # Invoice PDF generation, financial calculations
-│   │   └── urls.py             # Billing routes (/billing/*)
-│   │
-│   ├── publications/           # Research paper management
-│   │   ├── models.py           # Publication (with approval workflow)
-│   │   ├── views.py            # Submit, approve/reject, public listing
-│   │   ├── forms.py            # PublicationForm
-│   │   └── urls.py             # Publication routes (/publications/*)
-│   │
-│   ├── audit/                  # Audit trail subsystem
-│   │   ├── models.py           # AuditLog
-│   │   ├── signals.py          # Automatic create/update/delete logging
-│   │   ├── middleware.py       # AuditUserMiddleware (thread-local user capture)
-│   │   ├── views.py            # Audit log viewer
-│   │   └── urls.py             # Audit routes (/audit/*)
-│   │
-│   ├── api/                    # REST API layer
-│   │   ├── views.py            # Staff-facing ViewSets (Appointment, Prescription, Invoice, etc.)
-│   │   ├── patient_views.py    # Patient-facing API views
-│   │   ├── serializers.py      # Staff API serializers
-│   │   ├── patient_serializers.py  # Patient API serializers
-│   │   ├── permissions.py      # IsPatient, IsDoctor, IsAdminRole, IsStaff
-│   │   ├── filters.py          # DjangoFilterBackend filter classes
-│   │   ├── pagination.py       # StandardResultsSetPagination, LargeResultsSetPagination
-│   │   ├── urls.py             # API router + JWT endpoints
-│   │   ├── patient_urls.py     # Patient API endpoints (/api/patient/*)
-│   │   ├── tests.py            # Patient API test suite (55+ test cases)
-│   │   └── tests_extended.py   # Staff API, audit, publication, model tests (60+ test cases)
-│   │
-│   └── media/                  # Local media uploads (dev only)
-│
-├── frontend/                   # Frontend assets (served by Django)
-│   ├── templates/              # Django HTML templates
-│   │   ├── base.html           # Base layout template
-│   │   ├── dashboard.html      # Role-based dashboard router
-│   │   ├── dashboards/         # Role-specific dashboards (6 files)
-│   │   │   ├── admin.html
-│   │   │   ├── doctor.html
-│   │   │   ├── patient.html
-│   │   │   ├── receptionist.html
-│   │   │   ├── pharmacist.html
-│   │   │   └── accountant.html
-│   │   ├── accounts/           # Login, signup, profile templates
-│   │   ├── appointments/       # Booking & management templates
-│   │   ├── patients/           # Patient list, detail, EHR templates
-│   │   ├── prescriptions/      # Prescription create & pharmacy templates
-│   │   ├── billing/            # Invoice & medicine catalog templates
-│   │   ├── publications/       # Research paper templates
-│   │   ├── audit/              # Audit log viewer templates
-│   │   ├── components/         # Reusable UI components
-│   │   ├── layouts/            # Page layout templates
-│   │   ├── prototype/          # A4 print prototypes (prescription, invoice)
-│   │   └── registration/       # Auth flow templates
-│   │
-│   ├── static/proclinic/       # Static assets
-│   │   ├── design-system.css   # Complete CSS design system
-│   │   ├── js/                 # JavaScript modules
-│   │   └── icons/              # SVG icon set
-│   │
-│   └── media/                  # Media uploads (Docker volume mount point)
-│
-├── docs/                       # Project documentation
-│   ├── api.md                  # API endpoint reference
-│   ├── architecture.md         # Architecture documentation
-│   ├── models.md               # Data model documentation
-│   ├── workflow.md             # Business workflow documentation
-│   └── proclinic_design_handoff.md  # UI/UX design specifications
-│
-├── deliverables/               # UI mockups and prototypes
-│   └── png/                    # 15 UI mockup images (desktop, tablet, mobile)
-│
-├── docker-compose.yml          # Multi-service dev environment (PostgreSQL + Redis + Web)
-├── Dockerfile                  # Production container (Python 3.12-slim + Gunicorn)
-├── render.yaml                 # Render Blueprint (auto-deploy configuration)
-├── build.sh                    # Render build script
-├── requirements.txt            # Python dependencies
-└── .gitignore                  # Git exclusions
+├── backend/                          # Django project root
+│   ├── core/                         # Project settings, root URLs, base views, utils
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   ├── views.py                  # Dashboard router + prototype views
+│   │   ├── utils.py                  # Email notification utilities
+│   │   ├── wsgi.py
+│   │   └── asgi.py
+│   ├── accounts/                     # User model + authentication
+│   │   ├── models.py                 # CustomUser, PatientOTP
+│   │   ├── views.py                  # Login, signup, OTP password reset
+│   │   └── urls.py
+│   ├── patients/                     # Patient records + EHR
+│   │   ├── models.py                 # Patient, Visit, LabReport
+│   │   ├── views.py                  # CRUD + self-service + AI Ask
+│   │   └── urls.py
+│   ├── appointments/                 # Appointment scheduling
+│   │   ├── models.py                 # Appointment, DoctorUnavailability
+│   │   ├── services.py               # auto_mark_noshow()
+│   │   ├── management/commands/
+│   │   │   └── mark_noshow.py        # CLI: auto no-show marking
+│   │   └── urls.py
+│   ├── prescriptions/                # Prescription management
+│   │   ├── models.py                 # Prescription, PrescriptionItem
+│   │   ├── utils.py                  # WeasyPrint PDF generation
+│   │   └── urls.py
+│   ├── billing/                      # Invoice and payment
+│   │   ├── models.py                 # Invoice, InvoiceItem, MedicineMaster
+│   │   ├── signals.py                # Auto-draft invoice on appointment COMPLETED
+│   │   ├── utils.py                  # Invoice PDF + email notifications
+│   │   └── urls.py
+│   ├── publications/                 # Research paper workflow
+│   │   ├── models.py                 # Publication (DRAFT→PENDING→APPROVED/REJECTED)
+│   │   └── urls.py
+│   ├── audit/                        # Immutable audit trail
+│   │   ├── models.py                 # AuditLog
+│   │   ├── signals.py                # pre_save / post_save / post_delete hooks
+│   │   ├── middleware.py             # AuditUserMiddleware (thread-local actor)
+│   │   └── urls.py
+│   ├── api/                          # DRF REST API
+│   │   ├── urls.py                   # Staff router + JWT token endpoints
+│   │   ├── patient_urls.py           # Patient-facing REST endpoints
+│   │   ├── views.py                  # Staff ViewSets
+│   │   ├── patient_views.py          # Patient API views
+│   │   ├── serializers.py            # Staff serializers
+│   │   ├── patient_serializers.py    # Patient-facing serializers
+│   │   ├── filters.py                # django-filter FilterSets
+│   │   ├── pagination.py             # StandardResultsSetPagination (20), LargeResultsSetPagination (50)
+│   │   ├── permissions.py            # IsStaff, IsPatient, IsDoctor, IsAdminRole
+│   │   ├── tests.py                  # Patient API test suite
+│   │   └── tests_extended.py         # Extended staff API + signal tests
+│   ├── manage.py
+│   ├── create_admin.py               # Upserts admin superuser on deploy
+│   └── .env                          # Local environment variables (not committed)
+├── frontend/
+│   ├── templates/                    # Django HTML templates (role-aware dashboards)
+│   │   ├── base.html
+│   │   ├── dashboard.html
+│   │   ├── accounts/
+│   │   ├── appointments/
+│   │   ├── billing/
+│   │   ├── patients/
+│   │   ├── prescriptions/
+│   │   ├── publications/
+│   │   ├── audit/
+│   │   ├── dashboards/               # Per-role dashboard partials
+│   │   ├── layouts/
+│   │   ├── components/
+│   │   └── prototype/                # Design system + A4 PDF templates
+│   ├── static/                       # CSS, JS, images
+│   └── media/                        # Local media uploads (dev only)
+├── docs/
+│   ├── api.md                        # API reference documentation
+│   ├── architecture.md               # Architecture overview
+│   ├── models.md                     # Data model reference
+│   ├── workflow.md                   # User journey workflows
+│   ├── proclinic_design_handoff.md   # UI/UX design handoff
+│   ├── PRD.pdf                       # Product Requirements Document
+│   ├── ProClinicSRS.pdf              # Software Requirements Specification
+│   └── ProClinic_DFD.pdf             # Data Flow Diagram
+├── Dockerfile                        # Production container (python:3.12-slim)
+├── docker-compose.yml                # Local dev: Django + PostgreSQL 16 + Redis 7
+├── render.yaml                       # Render Blueprint (one-click deployment)
+├── build.sh                          # Render build script (pip install + collectstatic)
+└── requirements.txt                  # Pinned Python dependencies
 ```
 
 ---
@@ -387,23 +275,28 @@ ProClinic/
 
 | Requirement | Version | Notes |
 |---|---|---|
-| Python | ≥ 3.12 | Required for Django 6.0 |
-| pip | Latest | Python package manager |
-| Git | Any | Version control |
-| PostgreSQL | ≥ 16 | Production database (optional for local dev — SQLite fallback) |
-| Docker & Docker Compose | Latest | Optional: containerized development |
-| WeasyPrint system dependencies | — | Required for PDF generation (see below) |
+| Python | 3.12+ | 3.12.3 used in production |
+| pip | latest | `pip install --upgrade pip` |
+| Git | any | |
+| **For local dev (SQLite)** | — | No additional database required |
+| **For Docker dev** | Docker + Docker Compose v2 | PostgreSQL 16 + Redis 7 |
+| **For PDF generation** | System libraries | See WeasyPrint dependencies below |
+| **For production** | PostgreSQL 16 | Via `DATABASE_URL` |
+| **For media uploads (prod)** | Cloudinary account | Free tier sufficient |
+| **For AI assistant** | Google AI Studio API key | `GEMINI_API_KEY` |
+| **For email** | Gmail account with App Password | SMTP |
 
 ### WeasyPrint System Dependencies
 
-WeasyPrint requires system-level libraries for PDF rendering. Install them before `pip install`:
+WeasyPrint requires Pango, Cairo, and GDK-Pixbuf. Install them before running:
 
-**Ubuntu / Debian:**
+**Debian/Ubuntu:**
 ```bash
 sudo apt-get install -y \
-    libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b \
-    libfontconfig1 libgdk-pixbuf-2.0-0 libcairo2 \
-    shared-mime-info libjpeg62-turbo-dev zlib1g-dev
+  libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b \
+  libfontconfig1 libgdk-pixbuf-2.0-0 libcairo2 \
+  shared-mime-info libjpeg62-turbo-dev zlib1g-dev \
+  libpq-dev gcc g++
 ```
 
 **macOS (Homebrew):**
@@ -411,261 +304,147 @@ sudo apt-get install -y \
 brew install pango cairo gdk-pixbuf libffi
 ```
 
-**Windows:**
-Follow the [WeasyPrint Windows installation guide](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows).
-
 ---
 
 ## Installation Guide
 
-### Option A: Local Development (Recommended for development)
+### Option 1 — Local Development (SQLite, recommended for first run)
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/24Chessman/ProClinic.git
+git clone https://github.com/your-org/ProClinic.git
 cd ProClinic
 
 # 2. Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate        # Linux/macOS
-# venv\Scripts\activate         # Windows
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
 # 3. Install Python dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
 
 # 4. Configure environment variables
-cp backend/.env.example backend/.env   # Or create manually (see below)
+cp backend/.env backend/.env.local    # or edit backend/.env directly
+# See Environment Configuration section for required values
 
-# 5. Apply database migrations
+# 5. Run database migrations
 cd backend
 python manage.py migrate
 
-# 6. Create an admin superuser
-python create_admin.py
-# Creates: username=admin, password=Admin@12345, role=ADMIN
+# 6. Create the initial admin superuser
+python manage.py createsuperuser
+# OR use the provided bootstrap script:
+python create_admin.py             # creates username=admin, password=Admin@12345
 
-# 7. Run the development server
+# 7. Collect static files (required for the admin interface)
+python manage.py collectstatic --no-input
+
+# 8. Start the development server
 python manage.py runserver
 ```
 
-The application will be available at **http://127.0.0.1:8000**
+The application is now available at **http://127.0.0.1:8000/**
 
-### Option B: Docker Compose (Full stack)
+### Option 2 — Docker Compose (PostgreSQL + Redis)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/24Chessman/ProClinic.git
+# 1. Clone and enter the repository
+git clone https://github.com/your-org/ProClinic.git
 cd ProClinic
 
-# 2. Start all services (PostgreSQL + Redis + Django)
+# 2. Copy and customise the environment file
+#    The docker-compose.yml has defaults for local use, but you can override
+cp backend/.env backend/.env.docker   # optional; compose uses its own env block
+
+# 3. Build and start all services
 docker compose up --build
 
-# 3. Apply migrations (in a separate terminal)
+# 4. In a second terminal, run migrations
 docker compose exec web python backend/manage.py migrate
 
-# 4. Create admin user
+# 5. Create the admin user
 docker compose exec web python backend/create_admin.py
 ```
 
-Services will be available at:
-- **Django App**: http://localhost:8000
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
+Services exposed:
+- **Django** → http://localhost:8000
+- **PostgreSQL** → localhost:5432
+- **Redis** → localhost:6379
 
 ---
 
 ## Environment Configuration
 
-Create `backend/.env` with the following variables:
+ProClinic reads all configuration from a `.env` file located at `backend/.env`. Create this file before running for the first time.
+
+### Minimal `.env` for local development
 
 ```env
-# ── Django Core ──────────────────────────────────────────────
 DEBUG=True
-SECRET_KEY=your-secret-key-here
+SECRET_KEY=django-insecure-replace-this-with-a-random-string
 ALLOWED_HOSTS=127.0.0.1,localhost
-
-# ── Database ─────────────────────────────────────────────────
-# Leave unset for SQLite (local dev); set for PostgreSQL:
-# DATABASE_URL=postgres://user:password@host:5432/dbname
-
-# ── Clinic Configuration ─────────────────────────────────────
 CONSULTATION_FEE=500.00
 GST_RATE=0.18
-
-# ── Cloudinary (Production media storage) ────────────────────
-# CLOUDINARY_CLOUD_NAME=your-cloud-name
-# CLOUDINARY_API_KEY=your-api-key
-# CLOUDINARY_API_SECRET=your-api-secret
-
-# ── Email (Gmail SMTP for OTP & invoice delivery) ────────────
-# GMAIL_USER=your-email@gmail.com
-# GMAIL_PASS=your-app-password
-
-# ── Google Gemini AI (Patient health assistant) ──────────────
-# GEMINI_API_KEY=your-gemini-api-key
-
-# ── Security (Production only) ───────────────────────────────
-# SECURE_SSL_REDIRECT=True
-# SESSION_COOKIE_SECURE=True
-# CSRF_COOKIE_SECURE=True
-# SECURE_HSTS_SECONDS=31536000
-# SECURE_HSTS_INCLUDE_SUBDOMAINS=True
-# SECURE_HSTS_PRELOAD=True
-# CSRF_TRUSTED_ORIGINS=https://your-domain.com
 ```
 
-### Environment Variable Reference
+### Complete Environment Variable Reference
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `DEBUG` | No | `False` | Enable Django debug mode |
-| `SECRET_KEY` | **Yes** | — | Django secret key for cryptographic signing |
-| `ALLOWED_HOSTS` | **Yes** | — | Comma-separated list of allowed hostnames |
-| `DATABASE_URL` | No | SQLite | PostgreSQL connection string |
-| `CONSULTATION_FEE` | No | `500.00` | Default consultation fee (INR) |
-| `GST_RATE` | No | `0.18` | GST tax rate (18%) |
-| `CLOUDINARY_CLOUD_NAME` | No | — | Cloudinary cloud name for media storage |
-| `CLOUDINARY_API_KEY` | No | — | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | No | — | Cloudinary API secret |
-| `GMAIL_USER` | No | — | Gmail address for sending emails |
-| `GMAIL_PASS` | No | — | Gmail app password |
-| `RENDER` | No | — | Set to `true` when deploying on Render |
-| `SECURE_SSL_REDIRECT` | No | `False` | Force HTTPS redirects |
-| `SESSION_COOKIE_SECURE` | No | `False` | Secure flag on session cookies |
-| `CSRF_COOKIE_SECURE` | No | `False` | Secure flag on CSRF cookies |
-| `SECURE_HSTS_SECONDS` | No | `0` | HSTS max-age in seconds |
-| `CSRF_TRUSTED_ORIGINS` | No | `[]` | Trusted origins for CSRF validation |
+| `SECRET_KEY` | ✅ | — | Django secret key. Generate with `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DEBUG` | ✅ | `False` | `True` for development; must be `False` in production |
+| `ALLOWED_HOSTS` | ✅ | — | Comma-separated hostnames (e.g. `127.0.0.1,localhost`) |
+| `DATABASE_URL` | ❌ | SQLite | Full PostgreSQL URL: `postgres://user:pass@host:5432/dbname`. If omitted, SQLite is used |
+| `CLOUDINARY_CLOUD_NAME` | ❌ | — | Cloudinary cloud name. Required for media in production |
+| `CLOUDINARY_API_KEY` | ❌ | — | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | ❌ | — | Cloudinary API secret |
+| `CONSULTATION_FEE` | ❌ | `500.00` | Default consultation fee in invoice auto-generation (₹) |
+| `GST_RATE` | ❌ | `0.18` | GST rate applied to invoices (18% = `0.18`) |
+| `GEMINI_API_KEY` | ❌ | — | Google AI Studio API key for the patient AI health assistant |
+| `GMAIL_USER` | ❌ | — | Gmail address for SMTP email notifications |
+| `GMAIL_PASS` | ❌ | — | Gmail App Password (not the account password) |
+| `REDIS_URL` | ❌ | — | Redis URL (used in Docker Compose: `redis://redis:6379/0`) |
+| `RENDER` | ❌ | — | Set to `true` on Render to enable IS_RENDER flag and media URL handling |
+| `SECURE_SSL_REDIRECT` | ❌ | `False` | Set `True` in production; redirects all HTTP to HTTPS |
+| `SESSION_COOKIE_SECURE` | ❌ | `False` | Set `True` in production |
+| `CSRF_COOKIE_SECURE` | ❌ | `False` | Set `True` in production |
+| `CSRF_TRUSTED_ORIGINS` | ❌ | `https://*.onrender.com` | Additional trusted origins for CSRF |
+| `SECURE_HSTS_SECONDS` | ❌ | `0` | Set `31536000` (1 year) in production |
+| `SECURE_HSTS_INCLUDE_SUBDOMAINS` | ❌ | `False` | Set `True` in production |
+| `SECURE_HSTS_PRELOAD` | ❌ | `False` | Set `True` in production |
+
+> **Note:** The `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, and `DJANGO_SUPERUSER_PASSWORD` variables are used only during Render deployments by `create_admin.py`, not by standard Django's `createsuperuser --noinput`.
 
 ---
 
-## Database Setup
+## Database Setup and Migrations
 
-### Local Development (SQLite — Zero Config)
-
-When `DATABASE_URL` is not set, Django automatically uses SQLite:
+### Running Migrations
 
 ```bash
 cd backend
 python manage.py migrate
 ```
 
-### PostgreSQL (Production / Docker)
+### Migration History
+
+| App | Migration Chain |
+|---|---|
+| `accounts` | `0001_initial` |
+| `patients` | `0001_initial` → `0002_add_user_fk_visit_labreport` → `0003_backfill_user_fk` → `0004_upgrade_labreport_pdf_status` |
+| `appointments` | `0001_initial` → `0002_doctorunavailability` → `0003_add_rescheduled_status_cancellation_fields` |
+| `prescriptions` | `0001_initial` → `0002_add_visit_fk_remove_notes` |
+| `billing` | `0001_initial` |
+| `publications` | `0001_initial` → `0002_add_approval_fields` |
+| `audit` | `0001_initial` |
+
+### Resetting the Database (development only)
 
 ```bash
-# Create the database
-createdb proclinic
-
-# Set the connection string in backend/.env
-DATABASE_URL=postgres://proclinic_user:proclinic_pass@localhost:5432/proclinic
-
-# Run migrations
 cd backend
+rm db.sqlite3
 python manage.py migrate
-```
-
-### Data Model Overview
-
-```mermaid
-erDiagram
-    CustomUser ||--o| Patient : "user (1:1)"
-    CustomUser ||--o{ PatientOTP : "otps"
-    CustomUser ||--o{ Appointment : "doctor_appointments"
-    CustomUser ||--o{ Prescription : "prescriptions_written"
-    CustomUser ||--o{ Publication : "publications"
-    CustomUser ||--o{ AuditLog : "audit_logs"
-
-    Patient ||--o{ Appointment : "appointments"
-    Patient ||--o{ Visit : "visits"
-    Patient ||--o{ Prescription : "prescriptions"
-    Patient ||--o{ Invoice : "invoices"
-    Patient ||--o{ LabReport : "lab_reports"
-
-    Appointment ||--o| Visit : "visit (1:1)"
-    Appointment ||--o| Invoice : "invoice (1:1)"
-
-    Visit ||--o{ Prescription : "prescriptions"
-    Prescription ||--o{ PrescriptionItem : "items"
-
-    Invoice ||--o{ InvoiceItem : "items"
-
-    CustomUser {
-        string role "ADMIN|DOCTOR|RECEPTIONIST|PHARMACIST|ACCOUNTANT|PATIENT"
-        string phone_number
-        string specialization
-    }
-
-    Patient {
-        string first_name
-        string last_name
-        date date_of_birth
-        string gender
-        string blood_group
-        string contact_number
-        string email
-        text address
-        text allergies
-    }
-
-    Appointment {
-        datetime scheduled_time
-        text reason
-        string status "SCHEDULED|CHECKED_IN|COMPLETED|CANCELLED|NOSHOW|RESCHEDULED"
-        string room_assignment
-    }
-
-    Visit {
-        datetime visit_date
-        text notes
-        text diagnosis
-    }
-
-    Prescription {
-        string dispense_status "PENDING|DISPENSED"
-        datetime dispensed_at
-    }
-
-    PrescriptionItem {
-        string medicine_name
-        string dosage
-        string instructions
-        string duration
-    }
-
-    Invoice {
-        string status "DRAFT|UNPAID|PARTIAL|PAID|REFUNDED"
-        decimal subtotal
-        decimal tax_amount
-        decimal discount_amount
-        decimal grand_total
-    }
-
-    InvoiceItem {
-        string item_type "CONSULTATION|MEDICINE|LAB|PROCEDURE|OTHER"
-        string service_name
-        decimal unit_cost
-        int quantity
-    }
-
-    LabReport {
-        string test_name
-        date report_date
-        string status "pending|verified|archived"
-    }
-
-    Publication {
-        string title
-        text abstract
-        string authors
-        string status "DRAFT|PENDING|APPROVED|REJECTED"
-    }
-
-    AuditLog {
-        string action_type "CREATE|UPDATE|DELETE|LOGIN"
-        string entity_type
-        int entity_id
-        json changes
-    }
+python create_admin.py
 ```
 
 ---
@@ -679,353 +458,542 @@ cd backend
 python manage.py runserver
 ```
 
-### With Docker Compose
+Entry points after startup:
+
+| URL | Description |
+|---|---|
+| `http://127.0.0.1:8000/` | Redirects to login selection |
+| `http://127.0.0.1:8000/accounts/choose-login/` | Choose Staff or Patient portal |
+| `http://127.0.0.1:8000/accounts/login/staff/` | Staff login |
+| `http://127.0.0.1:8000/accounts/login/patient/` | Patient login |
+| `http://127.0.0.1:8000/accounts/signup/patient/` | Patient self-registration |
+| `http://127.0.0.1:8000/dashboard/` | Role-aware dashboard (login required) |
+| `http://127.0.0.1:8000/admin/` | Django admin |
+| `http://127.0.0.1:8000/api/` | DRF browsable API root |
+| `http://127.0.0.1:8000/design-system/` | UI component reference |
+| `http://127.0.0.1:8000/publications/` | Public research paper listing |
+
+### Production (Gunicorn)
 
 ```bash
-docker compose up
+cd backend
+gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120
 ```
 
-### Default Login Credentials
-
-After running `create_admin.py`:
-
-| Role | Username | Password |
-|---|---|---|
-| Administrator | `admin` | `Admin@12345` |
-
-Additional staff accounts can be created through the Admin dashboard (`/accounts/staff/create/`). Patient accounts are created via self-registration at `/accounts/signup/patient/`.
-
-### Role-Based Dashboards
-
-After login, users are automatically redirected to their role-specific dashboard:
-
-| Role | Dashboard | Key Functions |
-|---|---|---|
-| **Admin** | `/dashboard/` | Staff management, audit logs, publication review, system overview |
-| **Doctor** | `/dashboard/` | Today's appointments, patient visits, prescriptions, research papers |
-| **Receptionist** | `/dashboard/` | Appointment booking/management, patient registration, check-in |
-| **Pharmacist** | `/dashboard/` | Pending prescriptions, dispense tracking |
-| **Accountant** | `/dashboard/` | Invoice management, payment tracking, medicine catalog |
-| **Patient** | `/dashboard/` | Appointments, prescriptions, invoices, lab reports, AI assistant |
+The `--timeout 120` is required to prevent Gunicorn from killing WeasyPrint PDF generation processes before they complete.
 
 ---
 
 ## Development Workflow
 
-### Code Organization
-
-The project follows Django's app-based modularity:
-
-- **Template-based views** handle server-rendered HTML pages (staff and patient web interfaces)
-- **DRF ViewSets** provide the JSON REST API for programmatic access
-- **Signals** automate cross-app workflows (invoice generation, audit logging)
-- **Middleware** provides request-scoped context (current user for audit)
-
-### Key Design Patterns
-
-1. **Dual Authentication**: Session-based for web UI + JWT for API
-2. **Signal-Driven Automation**: `billing.signals` auto-creates invoices; `audit.signals` logs all mutations
-3. **Cloudinary Fallback**: Uses Cloudinary when credentials are present, local `FileSystemStorage` otherwise
-4. **Database Flexibility**: PostgreSQL in production (via `DATABASE_URL`), SQLite for local development
-
-### Static Files
+### First-time setup checklist
 
 ```bash
-# Collect static files for production
+# 1. Install system libraries (WeasyPrint)
+# 2. Create virtualenv and install requirements
+# 3. Copy and populate backend/.env
+# 4. python manage.py migrate
+# 5. python create_admin.py
+# 6. python manage.py runserver
+```
+
+### Creating a Staff Account
+
+After logging in as admin, navigate to **Dashboard → Staff Management** or use the Django admin at `/admin/accounts/customuser/`. Alternatively, the staff creation form is at `/accounts/staff/create/`.
+
+Available roles: `ADMIN`, `DOCTOR`, `RECEPTIONIST`, `PHARMACIST`, `ACCOUNTANT`.
+
+### Day-to-day development
+
+```bash
+# Run tests before committing
 cd backend
+python manage.py test api patients appointments billing publications audit accounts
+
+# Check migrations after model changes
+python manage.py makemigrations
+python manage.py migrate
+
+# Collect static files
 python manage.py collectstatic --no-input
 ```
 
-Static files are served via WhiteNoise with `CompressedManifestStaticFilesStorage` (gzip + fingerprint hashing).
-
-### Creating Migrations
-
-```bash
-cd backend
-python manage.py makemigrations
-python manage.py migrate
-```
-
 ---
 
-## Testing
+## Build Instructions
 
-ProClinic includes a comprehensive test suite with **115+ test cases** covering models, API endpoints, permissions, signals, and middleware.
+### Render / Production Build
 
-### Running Tests
-
-```bash
-cd backend
-
-# Run all tests
-python manage.py test
-
-# Run specific test modules
-python manage.py test api.tests                  # Patient API tests (55+ cases)
-python manage.py test api.tests_extended          # Staff API, audit, model tests (60+ cases)
-
-# Run with verbosity
-python manage.py test --verbosity=2
-
-# Run a specific test class
-python manage.py test api.tests.PatientAppointmentTests
-```
-
-### Test Coverage Areas
-
-| Test Module | Cases | Coverage |
-|---|---|---|
-| `api/tests.py` | 55+ | Patient profile, appointments, prescriptions, invoices, lab reports, visits, staff API permissions |
-| `api/tests_extended.py` | 60+ | Audit middleware, audit signals, publication model/API, appointment model, lab report model, staff CRUD API, pagination, filtering |
-
-### Test Categories
-
-- **Patient API Tests**: Profile CRUD, appointment booking/cancel/reschedule, double-booking prevention, prescription access, invoice isolation, lab report upload/validation, visit history
-- **Staff API Tests**: Pagination, filtering by status/doctor/patient, search, CRUD operations
-- **Permission Tests**: Role-based access enforcement (patient blocked from staff endpoints, doctor blocked from admin actions)
-- **Audit Tests**: Middleware user capture, signal-based create/update/delete logging, diff computation, sensitive field exclusion
-- **Model Tests**: Business logic methods (cancel, reschedule, approve, reject, verify, archive), string representations, status transitions
-- **Publication Tests**: Approval/rejection workflow, public listing filtering, web view access control
-
----
-
-## API Overview
-
-The REST API uses Django REST Framework with JWT authentication. All endpoints are prefixed with `/api/`.
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/token/` | Obtain JWT access + refresh token pair |
-| `POST` | `/api/token/refresh/` | Refresh an expired access token |
-
-**Example — Obtain Token:**
-```bash
-curl -X POST http://localhost:8000/api/token/ \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@12345"}'
-```
-
-**Response:**
-```json
-{
-  "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-}
-```
-
-### Staff API Endpoints (JWT — Staff roles only)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/patients/` | List patients (paginated, filterable, searchable) |
-| `GET` | `/api/patients/{id}/` | Retrieve patient detail |
-| `GET` | `/api/appointments/` | List appointments (filterable by status, doctor, date) |
-| `POST` | `/api/appointments/{id}/cancel/` | Cancel an appointment |
-| `POST` | `/api/appointments/{id}/reschedule/` | Reschedule an appointment |
-| `GET` | `/api/prescriptions/` | List prescriptions (filterable by patient, searchable by medicine) |
-| `GET` | `/api/prescriptions/{id}/` | Retrieve prescription detail |
-| `GET` | `/api/prescriptions/{id}/pdf/` | Download prescription PDF |
-| `GET` | `/api/prescriptions/{id}/html_preview/` | HTML preview of prescription |
-| `GET` | `/api/invoices/` | List invoices (filterable by status, patient) |
-| `GET` | `/api/invoices/{id}/` | Retrieve invoice detail |
-| `GET` | `/api/publications/` | List publications (filterable by status) |
-| `POST` | `/api/publications/{id}/approve/` | Approve a publication (Admin only) |
-| `POST` | `/api/publications/{id}/reject/` | Reject a publication (Admin only) |
-| `GET` | `/api/publications/public_list/` | Public publication listing (no auth) |
-| `GET` | `/api/audit/logs/` | List audit logs (Admin only) |
-
-### Patient API Endpoints (JWT — Patient role only)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET/PUT/PATCH` | `/api/patient/profile/` | View/update own patient profile |
-| `GET` | `/api/patient/visits/` | List own visit history |
-| `GET/POST` | `/api/patient/appointments/` | List own appointments / Book new |
-| `PUT` | `/api/patient/appointments/{id}/reschedule/` | Reschedule own appointment |
-| `POST` | `/api/patient/appointments/{id}/cancel/` | Cancel own appointment |
-| `GET` | `/api/patient/prescriptions/` | List own prescriptions |
-| `GET` | `/api/patient/prescriptions/{id}/` | View own prescription detail |
-| `GET` | `/api/patient/invoices/` | List own invoices |
-| `GET/POST` | `/api/patient/lab-reports/` | List/upload own lab reports |
-
-### Web Routes (Session-Based)
-
-| Prefix | App | Key Routes |
-|---|---|---|
-| `/` | core | Home page, Dashboard |
-| `/accounts/` | accounts | Login portals, Signup, Profile, Staff management |
-| `/patients/` | patients | Patient CRUD, EHR, Lab reports, AI assistant |
-| `/appointments/` | appointments | Booking, Doctor schedule, Receptionist management |
-| `/prescriptions/` | prescriptions | Create, Pharmacist queue, Dispense |
-| `/billing/` | billing | Invoice generation, Management, PDF, Medicine catalog |
-| `/publications/` | publications | Submit, Review, Public listing |
-| `/audit/` | audit | Audit log viewer |
-| `/admin/` | Django Admin | Built-in admin interface |
-
-### Pagination
-
-All list endpoints return paginated responses (default: 20 items per page):
-
-```json
-{
-  "count": 150,
-  "next": "http://localhost:8000/api/patients/?page=2",
-  "previous": null,
-  "results": [...]
-}
-```
-
-### Filtering & Search
-
-Endpoints support query parameter filtering via `django-filter`:
+The `build.sh` script runs during Render's build phase:
 
 ```bash
-# Filter appointments by status
-GET /api/appointments/?status=SCHEDULED
-
-# Filter by doctor
-GET /api/appointments/?doctor=3
-
-# Search patients by name
-GET /api/patients/?search=John
-
-# Filter invoices by status
-GET /api/invoices/?status=UNPAID
-
-# Filter publications by status
-GET /api/publications/?status=APPROVED
-```
-
----
-
-## Authentication & Authorization
-
-### Dual Authentication Strategy
-
-ProClinic implements two parallel authentication mechanisms:
-
-1. **Session Authentication** (Web UI): Traditional Django session cookies for template-rendered pages
-2. **JWT Authentication** (REST API): SimpleJWT Bearer tokens for programmatic API access
-
-### Token Configuration
-
-| Setting | Value |
-|---|---|
-| Access Token Lifetime | 60 minutes |
-| Refresh Token Lifetime | 1 day |
-| Rotate Refresh Tokens | Yes |
-| Blacklist After Rotation | Yes |
-| Auth Header Type | `Bearer` |
-
-### Role-Based Permission Classes
-
-| Permission Class | Allowed Roles | Usage |
-|---|---|---|
-| `IsPatient` | `PATIENT` | Patient-facing API endpoints |
-| `IsDoctor` | `DOCTOR` | Doctor-specific operations |
-| `IsAdminRole` | `ADMIN` | Administrative actions (publication approval, staff management) |
-| `IsStaff` | `ADMIN`, `DOCTOR`, `RECEPTIONIST`, `PHARMACIST`, `ACCOUNTANT` | All non-patient endpoints |
-
-### Password Security
-
-- **Primary hasher**: Argon2 (memory-hard, GPU-resistant)
-- **Fallback hashers**: PBKDF2, PBKDF2SHA1, BCryptSHA256
-- **Validators**: UserAttributeSimilarity, MinimumLength, CommonPassword, NumericPassword
-
-### Patient OTP Recovery
-
-Patients can reset passwords via OTP:
-1. Request OTP → sent to registered email via Gmail SMTP
-2. Verify OTP (valid for 10 minutes, single-use)
-3. Set new password
-
----
-
-## Configuration Reference
-
-### Django Settings Breakdown
-
-| # | Setting Group | Configuration |
-|---|---|---|
-| 1 | Environment | `django-environ` for `.env` file parsing |
-| 2 | Security | `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` from env |
-| 3 | Apps | 8 project apps + 4 third-party apps |
-| 4 | Middleware | 9 middleware classes (incl. WhiteNoise, CORS, Audit) |
-| 5 | Templates | Points to `frontend/templates/` |
-| 6 | Database | PostgreSQL (via `DATABASE_URL`) or SQLite fallback |
-| 7 | Auth | Custom user model (`accounts.CustomUser`) |
-| 8 | Password | Argon2 primary hasher |
-| 9 | REST Framework | JWT + Session auth, DjangoFilterBackend, pagination (20/page) |
-| 10 | Static | WhiteNoise `CompressedManifestStaticFilesStorage` |
-| 11 | Media | Cloudinary (production) or local FileSystem (development) |
-| 12 | Timezone | `Asia/Kolkata` (IST) |
-| 13 | Email | Gmail SMTP (port 587, TLS) |
-| 14 | Logging | Console handler, structured format, stdout output |
-| 15 | CORS | `CORS_ALLOW_ALL_ORIGINS = True` |
-| 16 | Clinic | Configurable `CONSULTATION_FEE` and `GST_RATE` |
-
----
-
-## Deployment
-
-### Render (Primary — Blueprint Deploy)
-
-ProClinic includes a `render.yaml` Blueprint for one-click deployment:
-
-1. **Connect Repository**: Push to GitHub, then go to [Render Dashboard](https://dashboard.render.com/) → New → Blueprint
-2. **Automatic Provisioning**: Render reads `render.yaml` and creates:
-   - Web Service (`proclinic`) — Python runtime, free tier
-   - PostgreSQL Database (`proclinic-db`) — free tier, 1 GB storage
-3. **Set Environment Variables**: In Render Dashboard → Environment:
-   - `DATABASE_URL` (from Render PostgreSQL connection)
-   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-   - Other secrets as needed
-
-**Build Process:**
-```bash
-# build.sh (runs during Render BUILD phase)
+#!/usr/bin/env bash
+set -o errexit
 cd backend
 pip install --upgrade pip
 pip install -r ../requirements.txt
 python manage.py collectstatic --no-input
 ```
 
-**Start Process:**
+Migrations run in the **start command** (not the build), after Render confirms the database is reachable:
+
 ```bash
-# Render START command
 cd backend && \
 python manage.py migrate --no-input && \
 python create_admin.py && \
 gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
 ```
 
-**Production Security** (automatically configured in `render.yaml`):
-- `SECURE_SSL_REDIRECT=True`
-- `SESSION_COOKIE_SECURE=True`
-- `CSRF_COOKIE_SECURE=True`
-- `SECURE_HSTS_SECONDS=31536000` (1 year)
-- HSTS preloading enabled
+### Docker Build
+
+```bash
+# Build the production image
+docker build -t proclinic:latest .
+
+# Run locally
+docker run -p 8000:8000 \
+  -e SECRET_KEY=your-secret \
+  -e DEBUG=False \
+  -e ALLOWED_HOSTS=localhost \
+  proclinic:latest
+```
+
+---
+
+## Testing Strategy and Commands
+
+ProClinic has a substantial test suite split across multiple files.
+
+### Running All Tests
+
+```bash
+cd backend
+python manage.py test
+```
+
+### Running Specific Test Modules
+
+```bash
+# Patient-facing API tests (profile, appointments, prescriptions, invoices, lab reports, visits)
+python manage.py test api.tests
+
+# Extended staff API + audit signal tests
+python manage.py test api.tests_extended
+
+# JWT authentication tests
+python manage.py test api.test_jwt_auth
+
+# Appointment conflict detection
+python manage.py test appointments.test_conflicts
+
+# No-show auto-marking
+python manage.py test appointments.test_noshow
+
+# Consultation fee validation
+python manage.py test appointments.test_consultation
+
+# Invoice flow
+python manage.py test billing.test_invoice_flow
+
+# Patient model tests
+python manage.py test patients.tests
+
+# Lab report model tests
+python manage.py test patients.test_lab_reports
+
+# Accounts tests
+python manage.py test accounts.tests
+```
+
+### Test Coverage
+
+```bash
+pip install coverage
+cd backend
+coverage run manage.py test
+coverage report
+coverage html   # generates htmlcov/index.html
+```
+
+A `.coverage` file is present in the repository (excluded from version control via `.gitignore`).
+
+### What is Tested
+
+| Area | Coverage |
+|---|---|
+| Patient profile (own vs other) | ✅ GET, PUT, 401, 403 |
+| Appointment booking | ✅ Success, double-book, past time |
+| Appointment reschedule | ✅ Success, conflict, invalid time |
+| Appointment cancel | ✅ Success, already cancelled, other patient blocked |
+| Prescription access | ✅ Own vs other, staff-blocked endpoint |
+| Invoice access | ✅ Own vs other, patient cannot POST |
+| Lab report upload | ✅ PDF only, ≤5 MB, ownership |
+| Visit / EHR access | ✅ Own vs other |
+| Staff permission on patient endpoints | ✅ 403 enforcement |
+| Audit signals | ✅ CREATE/UPDATE/DELETE diffs |
+| Publication workflow | ✅ Approve, reject, public list |
+| Appointment model methods | ✅ cancel(), reschedule(), is_cancellable |
+
+---
+
+## API Overview and Endpoints
+
+The full REST API is mounted at `/api/`. All staff endpoints require a JWT `Bearer` token. Patient endpoints require a `PATIENT`-role JWT token.
+
+### Authentication Endpoints
+
+```http
+POST /api/token/
+Content-Type: application/json
+
+{ "username": "alice", "password": "secret" }
+```
+
+**Response:**
+```json
+{ "access": "<jwt_access_token>", "refresh": "<jwt_refresh_token>" }
+```
+
+```http
+POST /api/token/refresh/
+Content-Type: application/json
+
+{ "refresh": "<jwt_refresh_token>" }
+```
+
+**Access token lifetime:** 60 minutes  
+**Refresh token lifetime:** 1 day (rotated on each refresh; old token blacklisted)
+
+### Staff API Endpoints
+
+All endpoints below require `Authorization: Bearer <token>` with a staff-role account.
+
+#### Patients — `/api/patients/`
+
+| Method | URL | Description |
+|---|---|---|
+| `GET` | `/api/patients/` | List all patients (paginated) |
+| `POST` | `/api/patients/` | Create patient record |
+| `GET` | `/api/patients/{id}/` | Retrieve patient |
+| `PUT/PATCH` | `/api/patients/{id}/` | Update patient |
+| `DELETE` | `/api/patients/{id}/` | Delete patient |
+
+**Filter params:** `?first_name=`, `?last_name=`, `?blood_group=A+`, `?gender=Male`, `?search=`
+
+#### Appointments — `/api/appointments/`
+
+| Method | URL | Description |
+|---|---|---|
+| `GET` | `/api/appointments/` | List appointments |
+| `POST` | `/api/appointments/` | Create appointment |
+| `GET` | `/api/appointments/{id}/` | Retrieve |
+| `PUT/PATCH` | `/api/appointments/{id}/` | Update |
+| `DELETE` | `/api/appointments/{id}/` | Delete |
+| `POST` | `/api/appointments/{id}/cancel/` | Cancel with optional reason |
+| `POST` | `/api/appointments/{id}/reschedule/` | Reschedule `{ "new_time": "<iso8601>" }` |
+
+**Filter params:** `?status=`, `?doctor_id=`, `?patient_id=`, `?date=YYYY-MM-DD`, `?date_from=`, `?date_to=`
+
+#### Prescriptions — `/api/prescriptions/`
+
+| Method | URL | Description |
+|---|---|---|
+| `GET` | `/api/prescriptions/` | List prescriptions |
+| `POST` | `/api/prescriptions/` | Create prescription |
+| `GET` | `/api/prescriptions/{id}/` | Retrieve |
+| `GET` | `/api/prescriptions/{id}/pdf/` | Download as PDF |
+| `GET` | `/api/prescriptions/{id}/html-preview/` | HTML template preview |
+
+**Filter params:** `?patient_id=`, `?doctor_id=`, `?created_from=`, `?created_to=`, `?search=`
+
+#### Invoices — `/api/invoices/`
+
+| Method | URL | Description |
+|---|---|---|
+| `GET` | `/api/invoices/` | List invoices |
+| `POST` | `/api/invoices/` | Create invoice |
+| `GET` | `/api/invoices/{id}/` | Retrieve |
+| `PUT/PATCH` | `/api/invoices/{id}/` | Update |
+
+**Filter params:** `?status=UNPAID|PAID|PARTIAL|DRAFT|REFUNDED`, `?patient_id=`, `?created_from=`, `?created_to=`
+
+#### Publications — `/api/publications/`
+
+| Method | URL | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/publications/` | Staff | List all publications |
+| `POST` | `/api/publications/` | Staff | Submit a publication |
+| `GET` | `/api/publications/{id}/` | Staff | Retrieve |
+| `GET` | `/api/publications/public-list/` | **None** | APPROVED papers only |
+| `POST` | `/api/publications/{id}/approve/` | Admin | Approve |
+| `POST` | `/api/publications/{id}/reject/` | Admin | Reject `{ "reason": "..." }` |
+
+**Filter params:** `?status=`, `?authors=`, `?year=`, `?search=`
+
+#### Audit Logs — `/api/audit/logs/`
+
+| Method | URL | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/audit/logs/` | Admin only | Paginated audit log |
+| `GET` | `/api/audit/logs/{id}/` | Admin only | Single log entry |
+
+**Filter params:** `?action_type=CREATE|UPDATE|DELETE|LOGIN`, `?entity_type=Patient|Invoice|...`, `?ordering=timestamp|-timestamp`
+
+### Patient API Endpoints
+
+All endpoints require `Authorization: Bearer <patient_token>`. Each patient can only access their own data.
+
+| Method | URL | Description |
+|---|---|---|
+| `GET` | `/api/patient/profile/` | Own patient profile |
+| `PUT/PATCH` | `/api/patient/profile/` | Update own profile |
+| `GET` | `/api/patient/visits/` | EHR visit history |
+| `GET` | `/api/patient/appointments/` | Own appointments (filter: `?status=upcoming`) |
+| `POST` | `/api/patient/appointments/` | Book appointment |
+| `PUT` | `/api/patient/appointments/{id}/reschedule/` | Reschedule `{ "scheduled_time": "..." }` |
+| `POST` | `/api/patient/appointments/{id}/cancel/` | Cancel |
+| `GET` | `/api/patient/prescriptions/` | Own prescriptions |
+| `GET` | `/api/patient/prescriptions/{id}/` | Prescription detail |
+| `GET` | `/api/patient/invoices/` | Own invoices |
+| `GET` | `/api/patient/lab-reports/` | Own lab reports |
+| `POST` | `/api/patient/lab-reports/` | Upload lab report PDF (≤5 MB, multipart) |
+
+### Pagination
+
+All list endpoints return paginated responses:
+
+```json
+{
+  "count": 84,
+  "next": "http://localhost:8000/api/patients/?page=2",
+  "previous": null,
+  "results": [ ... ]
+}
+```
+
+| Param | Default | Max | Notes |
+|---|---|---|---|
+| `?page=<n>` | 1 | — | 1-indexed page number |
+| `?page_size=<n>` | 20 | 100 | Standard endpoints |
+| `?page_size=<n>` | 50 | 200 | Publications endpoint |
+
+### HTTP Status Codes
+
+| Code | Meaning |
+|---|---|
+| `200 OK` | Successful read or action |
+| `201 Created` | Resource created |
+| `400 Bad Request` | Validation error or invalid input |
+| `401 Unauthorized` | Missing or invalid JWT token |
+| `403 Forbidden` | Authenticated but insufficient permissions |
+| `404 Not Found` | Resource does not exist or outside patient's scope |
+| `405 Method Not Allowed` | HTTP method not supported on this endpoint |
+
+---
+
+## Authentication and Authorization
+
+### Authentication Methods
+
+ProClinic supports two authentication mechanisms simultaneously:
+
+| Method | Used by | How |
+|---|---|---|
+| **Django Session Auth** | Staff and patient web browsers | `POST /accounts/login/staff/` or `/accounts/login/patient/` |
+| **JWT Bearer Token** | API clients, mobile apps | `POST /api/token/` → `Authorization: Bearer <access_token>` |
+
+### Role System
+
+All permission decisions are driven by `CustomUser.role`:
+
+| Role | Portal Access | Key Permissions |
+|---|---|---|
+| `ADMIN` | Staff portal | Full system access; approve/reject publications; manage staff accounts; view audit logs |
+| `DOCTOR` | Staff portal | Own appointments; create prescriptions and visits; submit publications; verify lab reports |
+| `RECEPTIONIST` | Staff portal | Book/manage appointments; register patients; check in patients |
+| `PHARMACIST` | Staff portal | View and dispense prescription queue |
+| `ACCOUNTANT` | Staff portal | Generate and manage invoices; manage medicine catalogue |
+| `PATIENT` | Patient portal | Own appointments, prescriptions, invoices, lab reports; AI health assistant |
+
+### Permission Classes (DRF)
+
+| Class | File | Description |
+|---|---|---|
+| `IsStaff` | `api/permissions.py` | Any of ADMIN, DOCTOR, RECEPTIONIST, PHARMACIST, ACCOUNTANT |
+| `IsPatient` | `api/permissions.py` | PATIENT role only |
+| `IsDoctor` | `api/permissions.py` | DOCTOR role only |
+| `IsAdminRole` | `api/permissions.py` | ADMIN role only |
+
+### Permission Matrix
+
+| Action | Admin | Doctor | Receptionist | Pharmacist | Accountant | Patient | Anonymous |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| View all patients | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Register patient | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Book appointment | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Create prescription | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Dispense prescription | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Generate invoice | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| View own invoices | — | — | — | — | — | ✅ | ❌ |
+| Upload lab report | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Verify lab report | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Archive lab report | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Submit research paper | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Approve / reject paper | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View approved papers | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View audit logs | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Use AI assistant | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+
+### Patient Forgot Password (OTP Flow)
+
+Patients can reset their password via a three-step OTP email flow:
+
+1. `GET/POST /accounts/login/patient/forgot-password/` — submit username or email
+2. `GET/POST /accounts/login/patient/forgot-password/verify/` — enter 6-digit OTP (valid 10 minutes)
+3. `GET/POST /accounts/login/patient/forgot-password/reset/` — set new password
+
+The response at step 1 is non-enumerating: the same success message is shown whether or not the account exists.
+
+---
+
+## Configuration Reference
+
+### JWT Settings (`core/settings.py`)
+
+```python
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS':  True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+```
+
+### REST Framework Defaults
+
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.StandardResultsSetPagination',
+    'PAGE_SIZE': 20,
+}
+```
+
+### Password Hashing
+
+Argon2 is the primary hasher, with PBKDF2 and BCrypt as fallbacks for imported user records:
+
+```python
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
+```
+
+### Timezone and Locale
+
+```python
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'Asia/Kolkata'
+USE_TZ = True
+```
+
+### Storage Backends
+
+When Cloudinary credentials are present, media files (PDFs, lab reports, publication PDFs) are stored in Cloudinary. Otherwise, local `MEDIA_ROOT` is used:
+
+```python
+# Automatically selected based on env vars
+STORAGES = {
+    'default': {
+        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'
+        # OR 'django.core.files.storage.FileSystemStorage'
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+```
+
+---
+
+## Deployment Instructions
+
+### Render (Recommended)
+
+ProClinic includes a `render.yaml` Blueprint for one-click deployment.
+
+#### Steps
+
+1. Fork or clone the repository and push to GitHub
+2. In the Render Dashboard, click **New → Blueprint** and connect your repository
+3. Render will read `render.yaml` and provision:
+   - A Python web service (`proclinic`) in Singapore region
+   - A PostgreSQL 16 database (`proclinic-db`) in Oregon region
+4. After the initial deploy, set these environment variables manually in the Render Dashboard:
+
+| Variable | Where to get value |
+|---|---|
+| `DATABASE_URL` | Render Dashboard → `proclinic-db` → Connections → External Database URL |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary Dashboard → Settings → Access Keys |
+| `CLOUDINARY_API_KEY` | Cloudinary Dashboard |
+| `CLOUDINARY_API_SECRET` | Cloudinary Dashboard |
+| `GEMINI_API_KEY` | Google AI Studio |
+| `GMAIL_USER` | Your Gmail address |
+| `GMAIL_PASS` | Gmail App Password |
+
+5. Trigger a manual redeploy after setting environment variables
+
+#### Render Plan Notes
+
+- **Web service:** Free plan (512 MB RAM, 0.1 CPU, spins down after 15 min inactivity)
+- **Database:** Free plan (1 GB storage, expires after 90 days — upgrade for production use)
+- `autoDeploy: true` — every push to `main` triggers an automatic redeploy
+- `SECRET_KEY` is auto-generated by Render on first deploy
+
+#### Default Admin Credentials on Render
+
+The `create_admin.py` script runs on every deploy:
+- **Username:** `admin`
+- **Password:** `Admin@12345`
+
+> **Change this password immediately** after the first deployment.
 
 ### Docker (Self-Hosted)
 
 ```bash
-# Build and run production container
-docker build -t proclinic .
-docker run -p 8000:8000 \
-  -e DATABASE_URL=postgres://user:pass@db:5432/proclinic \
-  -e SECRET_KEY=your-production-secret-key \
+# 1. Build image
+docker build -t proclinic:latest .
+
+# 2. Run with PostgreSQL
+docker run -d \
+  --name proclinic \
+  -p 8000:8000 \
   -e DEBUG=False \
-  -e ALLOWED_HOSTS=your-domain.com \
-  proclinic
+  -e SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(50))") \
+  -e DATABASE_URL=postgres://user:pass@db-host:5432/proclinic \
+  -e ALLOWED_HOSTS=yourdomain.com \
+  -e CLOUDINARY_CLOUD_NAME=... \
+  -e CLOUDINARY_API_KEY=... \
+  -e CLOUDINARY_API_SECRET=... \
+  proclinic:latest
 ```
 
-**Dockerfile highlights:**
-- Base: `python:3.12-slim`
-- Includes WeasyPrint system dependencies (Pango, Cairo, GDK-Pixbuf)
-- Production server: Gunicorn with 2 workers, 120s timeout
-- Exposes port 8000
+Place a reverse proxy (nginx, Caddy) in front to handle HTTPS termination.
 
 ---
 
@@ -1033,203 +1001,287 @@ docker run -p 8000:8000 \
 
 ### Implemented Security Measures
 
-| Category | Implementation |
+| Measure | Implementation |
 |---|---|
-| **Password Hashing** | Argon2 (primary) with PBKDF2/BCrypt fallbacks |
-| **Authentication** | JWT with token rotation and blacklisting |
-| **CSRF Protection** | Django CSRF middleware + trusted origins configuration |
-| **XSS Prevention** | Django template auto-escaping |
-| **Clickjacking** | `X-Frame-Options` via `XFrameOptionsMiddleware` |
-| **HTTPS** | `SECURE_SSL_REDIRECT`, `SECURE_PROXY_SSL_HEADER` |
-| **HSTS** | 1-year max-age with subdomain inclusion and preloading |
-| **Secure Cookies** | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` in production |
-| **Input Validation** | Model-level `clean()` methods, DRF serializer validation |
-| **File Upload Validation** | PDF-only, 5 MB max for lab reports |
-| **Audit Trail** | All data mutations logged with actor, timestamp, and diffs |
-| **Sensitive Data** | Passwords, tokens, API keys excluded from audit logs |
-| **CORS** | `django-cors-headers` (currently allows all origins — restrict in production) |
+| **Password hashing** | Argon2 (primary); PBKDF2 and BCrypt as fallbacks |
+| **JWT token rotation** | Refresh tokens are blacklisted after use |
+| **HTTPS enforcement** | `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` in production |
+| **HSTS** | `SECURE_HSTS_SECONDS=31536000` with `include_subdomains` and `preload` in production |
+| **CSRF protection** | Django middleware enabled; `CSRF_TRUSTED_ORIGINS` configured for Render |
+| **Clickjacking protection** | `XFrameOptionsMiddleware` enabled |
+| **Role-based access** | Every view enforces `request.user.role` checks |
+| **Patient data isolation** | Patient API views filter all querysets by `request.user` — patients cannot see other patients' data |
+| **Audit trail** | Every CREATE/UPDATE/DELETE/LOGIN is logged with before/after diffs |
+| **Sensitive field exclusion** | `password`, `token`, `secret`, `api_key` are never stored in AuditLog |
+| **File upload validation** | Lab reports and publication PDFs: PDF extension enforced; lab reports ≤5 MB |
+| **Last admin protection** | Cannot deactivate the last active admin account |
+| **Self-deactivation protection** | Admins cannot deactivate their own account |
+| **OTP non-enumeration** | Password reset always returns the same response regardless of whether the account exists |
+| **OTP expiry** | OTPs expire after 10 minutes; 2-minute cooldown between requests |
+| **SQL injection** | Django ORM parameterised queries throughout — no raw SQL |
+| **XSS** | Django template auto-escaping enabled |
 
-### Security Recommendations
+### Security Headers (production only)
 
-> [!IMPORTANT]
-> Before production deployment, review these items:
-> - Set `CORS_ALLOW_ALL_ORIGINS = False` and configure specific allowed origins
-> - Rotate `SECRET_KEY` and store in a secrets manager
-> - Enable rate limiting on authentication endpoints
-> - Set `DEBUG = False` in production
-> - Configure `ALLOWED_HOSTS` to include only your production domains
+```python
+SECURE_PROXY_SSL_HEADER         = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT             = True
+SESSION_COOKIE_SECURE           = True
+CSRF_COOKIE_SECURE              = True
+SECURE_HSTS_SECONDS             = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS  = True
+SECURE_HSTS_PRELOAD             = True
+```
+
+### AI Assistant Safety
+
+The Gemini AI assistant system prompt enforces:
+- Clear "not a doctor" disclaimer in every response
+- Immediate emergency escalation for life-threatening symptom keywords
+- Structured response format (no free-form diagnosis)
+- Hard 1000-character input limit
 
 ---
 
-## Monitoring & Logging
+## Performance Notes
+
+- **`select_related` and `prefetch_related`** are used on all multi-join querysets to prevent N+1 queries
+- **`update_fields`** is used on all model method saves (`cancel()`, `reschedule()`, `mark_verified()`, etc.) to minimise database write overhead
+- **WhiteNoise** with `CompressedManifestStaticFilesStorage` gzips and fingerprint-hashes all static assets; browsers can cache them indefinitely
+- **Gunicorn workers:** 2 workers (safe for 512 MB RAM on Render free tier)
+- **Gunicorn timeout:** 120 seconds to allow WeasyPrint PDF generation to complete
+- **PDF generation:** WeasyPrint renders entirely in-memory (`BytesIO`) — no temporary files on disk
+- **`db_index=True`** is set on frequently filtered fields: `Appointment.status`, `Prescription.dispense_status`, `Publication.status`, `LabReport.status`
+- **Audit writes:** All `AuditLog.objects.create()` calls are wrapped in exception handlers — audit failures never block the main transaction
+
+---
+
+## Monitoring and Logging
 
 ### Logging Configuration
 
-ProClinic uses structured logging to stdout (compatible with Render, Docker, and cloud log aggregators):
-
-```
-[INFO] 2026-05-28 12:00:00 django Starting development server...
-[ERROR] 2026-05-28 12:01:00 django.request Internal Server Error: /api/...
-[DEBUG] 2026-05-28 12:02:00 accounts User login attempt for admin
-```
-
-**Logger Hierarchy:**
+ProClinic streams all logs to **stdout** so they are captured by Render's log viewer (or any container runtime's log aggregator):
 
 | Logger | Level | Description |
 |---|---|---|
-| `root` | WARNING | Catch-all for unregistered loggers |
-| `django` | INFO | Django framework events |
-| `django.request` | ERROR | HTTP request errors (4xx/5xx) |
-| `accounts` | DEBUG | Authentication events |
+| `root` | `WARNING` | All libraries not explicitly configured |
+| `django` | `INFO` | Framework-level information |
+| `django.request` | `ERROR` | Request errors only |
+| `accounts` | `DEBUG` | Login, OTP, user management events |
+| Audit module | `ERROR` | Audit write failures |
+| Billing | `INFO/ERROR` | Invoice PDF generation, email delivery |
+| AI assistant | `INFO/WARNING/ERROR` | Gemini API calls, quota errors |
 
-### Audit Log Monitoring
+**Log format:**
+```
+[LEVELNAME] TIMESTAMP logger_name message
+```
 
-The `AuditLog` model provides a built-in activity feed:
-- Web UI: `/audit/logs/` (admin-accessible)
-- REST API: `GET /api/audit/logs/` (admin-only, paginated)
-- Django Admin: Full CRUD interface with search and filters
+**Example:**
+```
+[INFO] 2026-05-28 06:30:00,000 billing.utils Saved PDF for invoice 42 → invoice_42_2026-05-28.pdf
+[ERROR] 2026-05-28 06:31:00,000 billing.utils Failed to send draft invoice email for invoice 42: Connection refused
+```
+
+### Audit Log Access
+
+- **Web UI:** `GET /audit/` — paginated read-only view (Admin only)
+- **REST API:** `GET /api/audit/logs/` — filterable, searchable (Admin only; returns empty list for non-admins)
+- **Django Admin:** `/admin/audit/auditlog/` — read-only; add/change/delete permissions disabled
+
+### Tracking Covered Entities
+
+`AuditLog` automatically records operations on: `Patient`, `Appointment`, `Prescription`, `Invoice`, `Publication`, `LabReport`
+
+---
+
+## Management Commands
+
+### `mark_noshow`
+
+Marks `SCHEDULED` and `RESCHEDULED` appointments as `NOSHOW` when the patient has not checked in within the configured grace period after the scheduled start time.
+
+```bash
+# Default: 30-minute grace period
+python manage.py mark_noshow
+
+# Custom grace period
+python manage.py mark_noshow --grace 15
+```
+
+**Cron schedule example (every 5 minutes):**
+```cron
+*/5 * * * * /path/to/.venv/bin/python /path/to/backend/manage.py mark_noshow >> /var/log/proclinic/noshow.log 2>&1
+```
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### `WeasyPrint` PDF generation fails
 
-#### WeasyPrint fails to generate PDFs
+**Symptom:** `RuntimeError: WeasyPrint failed` or blank PDF download
 
-**Symptom**: `OSError: cannot load library 'libpango-1.0'`
+**Cause:** Missing system libraries (Pango, Cairo, GDK-Pixbuf)
 
-**Solution**: Install system dependencies:
+**Fix:**
 ```bash
-sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
+# Ubuntu/Debian
+sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b \
+    libfontconfig1 libgdk-pixbuf-2.0-0 libcairo2 shared-mime-info
+
+# macOS
+brew install pango
 ```
 
-#### Migrations fail with `AppRegistryNotReady`
+---
 
-**Symptom**: `django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.`
+### `django.db.utils.OperationalError: no such table`
 
-**Solution**: Ensure `DJANGO_SETTINGS_MODULE` is set:
+**Cause:** Migrations have not been applied
+
+**Fix:**
 ```bash
-export DJANGO_SETTINGS_MODULE=core.settings
+cd backend
+python manage.py migrate
 ```
 
-#### Static files not loading in production
+---
 
-**Symptom**: CSS/JS returns 404 in production.
+### `SECRET_KEY` error on startup
 
-**Solution**: Run `collectstatic` and ensure WhiteNoise middleware is second in the list:
+**Cause:** `backend/.env` file is missing or `SECRET_KEY` is not set
+
+**Fix:** Create `backend/.env` with a `SECRET_KEY` value. See [Environment Configuration](#environment-configuration).
+
+---
+
+### Media files not loading in production
+
+**Cause:** Cloudinary credentials not configured; `IS_RENDER=true` but no persistent disk
+
+**Fix:** Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` environment variables. When all three are present, the storage backend switches to Cloudinary automatically.
+
+---
+
+### AI assistant returns "service not configured"
+
+**Cause:** `GEMINI_API_KEY` environment variable is not set
+
+**Fix:** Add `GEMINI_API_KEY=<your-key>` to `backend/.env` (local) or the Render Dashboard (production).
+
+---
+
+### Emails not being sent
+
+**Cause:** `GMAIL_USER` and/or `GMAIL_PASS` not configured, or Gmail SMTP is blocked
+
+**Fix:**
+1. Enable 2FA on your Gmail account
+2. Generate an [App Password](https://support.google.com/accounts/answer/185833)
+3. Set `GMAIL_USER=your@gmail.com` and `GMAIL_PASS=<app-password>` in `.env`
+
+---
+
+### JWT token rejected (`401 Unauthorized`)
+
+**Cause:** Expired access token (60-minute lifetime)
+
+**Fix:** Refresh the token:
+```bash
+curl -X POST http://localhost:8000/api/token/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "<your_refresh_token>"}'
+```
+
+---
+
+### Static files return 404 in production
+
+**Cause:** `collectstatic` not run, or `STATIC_ROOT` not pointing to `backend/staticfiles/`
+
+**Fix:**
 ```bash
 cd backend
 python manage.py collectstatic --no-input
 ```
 
-#### Database connection refused (Docker)
-
-**Symptom**: `psycopg2.OperationalError: could not connect to server`
-
-**Solution**: Wait for PostgreSQL health check to pass:
-```bash
-docker compose up -d db
-docker compose exec db pg_isready -U proclinic_user
-docker compose up web
-```
-
-#### Cloudinary uploads failing
-
-**Symptom**: `cloudinary.exceptions.Error: Must supply cloud_name`
-
-**Solution**: Set all three Cloudinary environment variables. Without them, the app falls back to local `FileSystemStorage`:
-```env
-CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-key
-CLOUDINARY_API_SECRET=your-secret
-```
-
-#### OTP emails not sending
-
-**Symptom**: Password reset OTP not received.
-
-**Solution**: Configure Gmail SMTP with an [App Password](https://support.google.com/accounts/answer/185833) (not your regular password):
-```env
-GMAIL_USER=your-email@gmail.com
-GMAIL_PASS=your-16-character-app-password
-```
-
-#### JWT token expired
-
-**Symptom**: `401 Unauthorized` on API requests.
-
-**Solution**: Refresh the token or obtain a new pair:
-```bash
-curl -X POST http://localhost:8000/api/token/refresh/ \
-  -H "Content-Type: application/json" \
-  -d '{"refresh": "your-refresh-token"}'
+Ensure WhiteNoise is in `MIDDLEWARE` before `CommonMiddleware`:
+```python
+'whitenoise.middleware.WhiteNoiseMiddleware',
 ```
 
 ---
 
-## Contributing
+### `CORS` errors from API client
 
-### Development Setup
+**Cause:** `CORS_ALLOW_ALL_ORIGINS = True` is set (development mode); if customised, the client origin may not be listed
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Follow existing code patterns and conventions
-4. Write tests for new functionality
-5. Run the full test suite: `python manage.py test`
-6. Submit a pull request with a clear description of changes
+**Note:** The current setting allows all origins. For production hardening, replace with:
+```python
+CORS_ALLOWED_ORIGINS = ['https://yourfrontend.com']
+```
+
+---
+
+## Contributing Guidelines
+
+### Branching Strategy
+
+- `main` — production-ready; auto-deployed to Render
+- Feature branches — `feature/<name>`, merged via pull request
 
 ### Code Standards
 
-| Area | Standard |
-|---|---|
-| **Python Style** | PEP 8 |
-| **Django Convention** | Fat models, thin views |
-| **API Design** | RESTful conventions via DRF ViewSets and Routers |
-| **Templates** | Component-based with `base.html` inheritance |
-| **CSS** | Custom design system (`design-system.css`) |
-| **Testing** | Django `TestCase` with `setUpTestData` for performance |
-| **Commit Messages** | Clear, descriptive messages with scope |
+1. **Django conventions** — follow the [Django Coding Style](https://docs.djangoproject.com/en/dev/internals/contributing/writing-code/coding-style/)
+2. **Model methods** — use `update_fields` when saving partial changes
+3. **Views** — always check `request.user.role` before returning sensitive data
+4. **Signals** — wrap all signal logic in `try/except`; logging failures must never crash the main transaction
+5. **Tests** — add tests for any new API endpoint or model behaviour before opening a PR
+6. **Migrations** — generate and commit migrations for all model changes; never edit existing migration files
+7. **Secrets** — never commit credentials; use `backend/.env` (listed in `.gitignore`)
 
-### Project Apps Overview
+### Running Tests Before a PR
 
-| App | Responsibility |
-|---|---|
-| `accounts` | User model, authentication, role management, OTP recovery |
-| `patients` | Patient profiles, EHR visits, lab reports, AI assistant |
-| `appointments` | Scheduling, availability, check-in, status management |
-| `prescriptions` | Medication plans, PDF generation, pharmacy dispensing |
-| `billing` | Invoicing, payment tracking, medicine catalog, PDF export |
-| `publications` | Research paper submission and admin review workflow |
-| `audit` | Automatic mutation logging via signals and middleware |
-| `api` | REST API layer, serializers, permissions, filters, pagination |
+```bash
+cd backend
+python manage.py test
+```
 
----
+All tests must pass. New features should include corresponding test coverage.
 
-## License
+### Submitting a Pull Request
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make changes, write tests, run `python manage.py test`
+4. Commit with a descriptive message
+5. Push and open a pull request against `main`
 
 ---
 
-## Credits & Acknowledgements
+## License Information
 
-- **Django** — High-level Python web framework
-- **Django REST Framework** — Toolkit for building Web APIs
-- **WeasyPrint** — Visual rendering engine for HTML/CSS to PDF
-- **Cloudinary** — Cloud-based media management
-- **Argon2** — Memory-hard password hashing function (PHC winner)
-- **Google Gemini** — Generative AI for the patient health assistant
-- **Render** — Cloud application hosting platform
-- **WhiteNoise** — Simplified static file serving for Python web apps
+License information could not be determined from the codebase. No `LICENSE` file is present in the repository. Contact the project maintainer to determine usage terms.
 
 ---
 
-<div align="center">
+## Credits and Acknowledgements
 
-**Built with ❤️ for modern healthcare management**
+ProClinic was developed using the following open-source technologies:
 
-[⬆ Back to Top](#-proclinic)
-
-</div>
-]]>
+- [Django](https://www.djangoproject.com/) — Web framework
+- [Django REST Framework](https://www.django-rest-framework.org/) — REST API toolkit
+- [djangorestframework-simplejwt](https://django-rest-framework-simplejwt.readthedocs.io/) — JWT authentication
+- [WeasyPrint](https://weasyprint.org/) — HTML-to-PDF rendering for prescriptions and invoices
+- [WhiteNoise](http://whitenoise.evans.io/) — Static file serving
+- [django-environ](https://django-environ.readthedocs.io/) — Environment variable management
+- [django-filter](https://django-filter.readthedocs.io/) — QuerySet filtering
+- [django-cors-headers](https://github.com/adamchainz/django-cors-headers) — CORS headers
+- [Cloudinary](https://cloudinary.com/) — Cloud media storage
+- [Pillow](https://pillow.readthedocs.io/) — Image processing
+- [argon2-cffi](https://argon2-cffi.readthedocs.io/) — Argon2 password hashing
+- [Gunicorn](https://gunicorn.org/) — WSGI HTTP server
+- [psycopg2](https://www.psycopg.org/) — PostgreSQL adapter
+- [Google Generative AI (Gemini)](https://ai.google.dev/) — AI health assistant backend
+- [Render](https://render.com/) — Cloud deployment platform
